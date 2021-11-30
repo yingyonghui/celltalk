@@ -4,10 +4,10 @@
 \alias{dotPlot}
 \title{To present a dot plot for specific ligand-receptor pairs in specific clusters}
 \usage{
-dotPlot(all.marker.dat, Interact, ligand.ident = NULL, receptor.ident = NULL)
+dotPlot(marker.dat, Interact, ligand.ident = NULL, receptor.ident = NULL)
 }
 \arguments{
-\item{all.marker.dat}{Data frame containing information of marker genes}
+\item{marker.dat}{Data frame containing information of marker genes}
 
 \item{Interact}{Interact list returned by findLRpairs}
 

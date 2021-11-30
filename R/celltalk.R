@@ -7,6 +7,7 @@ load('data/cellTalkData.RData')
 #' @return Circos plot showing the ligand-receptor interaction
 #' @export
 circosPlot <- function(Interact,ident=NULL){
+	options(stringsAsFactors=F)
 	Interact.num.dat <- Interact$InteractNumer
 	# Interact.num.dat = Interact.num.dat[Interact.num.dat$LR.Number!=0,]
 	# cluster <- unique(c(Interact.num.dat$Cell.From,Interact.num.dat$Cell.To))
@@ -33,6 +34,7 @@ circosPlot <- function(Interact,ident=NULL){
 #' @return List containing the ligand-receptor interaction information
 #' @export
 findLRpairs <- function(marker.dat,species='mmusculus',logFC.thre=0.25,p.thre=0.01){
+	options(stringsAsFactors=F)
 	lr.pair.dat <- cellTalkData$DataLR[[species]]
 	ligs <- lr.pair.dat$L
 	reps <- lr.pair.dat$R
@@ -71,12 +73,18 @@ findLRpairs <- function(marker.dat,species='mmusculus',logFC.thre=0.25,p.thre=0.
 	rownames(Interact.gene.mat) <- cluster.level
 	colnames(Interact.gene.mat) <- cluster.level
 	Interact.gene.dat <- melt(Interact.gene.mat,varnames=c('Cell.From','Cell.To'),value.name="LR.Info", na.rm = TRUE)
+	# Interact.gene.dat$LR.Info <- as.character(Interact.gene.dat$LR.Info)
+	
 	rownames(Interact.lig.mat) <- cluster.level
 	colnames(Interact.lig.mat) <- cluster.level
 	Interact.lig.dat <- melt(Interact.lig.mat,varnames=c('Cell.From','Cell.To'),value.name="L.Info", na.rm = TRUE)
+	# Interact.lig.dat$L.Info <- as.character(Interact.lig.dat$L.Info)
+
 	rownames(Interact.rep.mat) <- cluster.level
 	colnames(Interact.rep.mat) <- cluster.level
 	Interact.rep.dat <- melt(Interact.rep.mat,varnames=c('Cell.From','Cell.To'),value.name="R.Info", na.rm = TRUE)
+	# Interact.rep.dat$R.Info <- as.character(Interact.rep.dat$R.Info)
+	
 	Interact.gene.dat$L.Info <- Interact.lig.dat$L.Info
 	Interact.gene.dat$R.Info <- Interact.rep.dat$R.Info
 	rownames(Interact.gene.dat) <- 1:nrow(Interact.gene.dat)
@@ -111,6 +119,7 @@ findLRpairs <- function(marker.dat,species='mmusculus',logFC.thre=0.25,p.thre=0.
 #' @return Dotplot showing the ligand-receptor interaction between the selected ligand.ident and receptor.ident
 #' @export
 dotPlot <- function(marker.dat, Interact, ligand.ident=NULL, receptor.ident=NULL){
+	options(stringsAsFactors=F)
 	if (is.null(ligand.ident) & is.null(receptor.ident)){
 		stopifnot("either ligand.ident or ligand.ident need to be asigned"=FALSE)
 	}
@@ -203,6 +212,7 @@ dotPlot <- function(marker.dat, Interact, ligand.ident=NULL, receptor.ident=NULL
 #' @return Interact list containing the ligand-receptor interaction information and the pathways showing overlap with the marker ligand and receptor genes in the dataset
 #' @export
 findLRpath <- function(Interact=Interact){
+	options(stringsAsFactors=F)
 	path.list <- cellTalkData$DataPathway[[Interact$species]]
 	marker.lig.dat <- Interact$markerL
 	marker.rep.dat <- Interact$markerR
@@ -226,6 +236,8 @@ findLRpath <- function(Interact=Interact){
 #' @return Dataframe including the statistic result comparing the pathway enrichment sorces between group 1 and group 2, the significant recetor and ligand of group 1 in the pathways, and the corresponding up stream identity class which interact with group 1 by releasing specific ligand
 #' @export
 diffLRpath <- function(Interact,gsva.mat,ident.lable,select.ident.1,select.ident.2=NULL){
+	options(stringsAsFactors=F)
+
 	path.lr.list <- Interact$pathwayLR
 	if (is.null(path.lr.list)){
 		stopifnot("no pathway detected, run findLRpath befor diffLRpath"=FALSE)
@@ -326,6 +338,8 @@ diffLRpath <- function(Interact,gsva.mat,ident.lable,select.ident.1,select.ident
 #' @return Dataframe including the interaction information
 #' @export
 findReceptor <- function(Interact, select.ident=NULL, select.ligand=NULL){
+	options(stringsAsFactors=F)
+
 	if (is.null(select.ident) & is.null(select.ligand)){
 		stopifnot("either a select.ident or a select.ligand need to be asigned"=FALSE)
 	}

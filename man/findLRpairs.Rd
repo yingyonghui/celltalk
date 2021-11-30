@@ -5,14 +5,14 @@
 \title{To find marker ligands and marker receptors}
 \usage{
 findLRpairs(
-  all.marker.dat,
+  marker.dat,
   species = "mmusculus",
   logFC.thre = 0.25,
   p.thre = 0.01
 )
 }
 \arguments{
-\item{all.marker.dat}{Data frame containing information of marker genes}
+\item{marker.dat}{Data frame containing information of marker genes}
 
 \item{species}{species, either 'hsapiens', 'mmusculus', or 'rnorvegicus'}
 
