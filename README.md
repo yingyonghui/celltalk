@@ -27,8 +27,11 @@ library(GSVA)
 load('cellTalk.sample.RData')
 ```
 ***sample.expr*** : expression matrix gene * cell, used as an example
+
 ***sample.lable*** : vector  of identity classes of cells in the expression matrix
+
 ***sample.marker*** : data frame of marker genes for each identity class, usually calculated by FindAllMarkers from Seurat
+
 ***gsva.mat*** : precomputed gsva scores for the example dataset
 
 #### LR关系鉴定
@@ -51,22 +54,25 @@ Interact <- findLRpairs(sample.marker,
 ```
 circosPlot(Interact=Interact)
 ```
-LR作用的点图：
+LR相互作用dotplot：
 ```
 # present a dot plot of LR pairs for specific clusters
 receptor.ident=6
-dotPlot(all.marker.dat=sample.marker, Interact=Interact, receptor.ident=receptor.ident)
+dotPlot(sample.marker, Interact=Interact, receptor.ident=receptor.ident)
 ```
 
 For specific upstream cells and their ligands, find the downstream cells and their receptors：
 ```
 select.ident = 6
 select.ligand = 'Dkk3'
-ident.down.dat <- findReceptor(Interact=Interact, select.ident, select.ligand)
+ident.down.dat <- findReceptor(Interact=Interact, 
+    select.ident=select.ident, 
+    select.ligand=select.ligand)
 ```
 #### 通路分析
 ```
-# find pathways in which genesets show overlap with the ligands and receptors in the exsample dataset
+# find pathways in which genesets show overlap 
+# with the ligands and receptors in the example dataset
 Interact <- findLRpath(Interact=Interact)
 ```
 Now genesets show overlap with the ligands and receptors in the exsample dataset are saved in Interact[['pathwayLR']]
@@ -75,15 +81,19 @@ gsva analysis：
 ```
 # to compute gsva score by gsva function from the GSVA package
 # to save time, we have precomputed gsva score and saved it in the varible *gsva.mat*
-# gsva.mat <- gsva(sample.expr, Interact[['pathwayLR']], min.sz=10, verbose=FALSE, parallel.sz=10)
+# gsva.mat <- gsva(sample.expr, Interact[['pathwayLR']], min.sz=10, parallel.sz=10)
 ```
 
 Pathway differential enrichment analysis：
 ```
-# to find the different enriched pathways for cells in the selected identity class and the receptor and ligand in the pathway
+# to find the different enriched pathways for cells in the selected identity class 
+# and the receptor and ligand in the pathway
 ident.lable = sample.lable
 select.ident.1 = 6
-test.res.dat <- diffLRpath(Interact=Interact, gsva.mat=gsva.mat, ident.lable=ident.lable, select.ident.1=6)
+test.res.dat <- diffLRpath(Interact=Interact, 
+    gsva.mat=gsva.mat, 
+    ident.lable=ident.lable, 
+    select.ident.1=6)
 
 head(test.res.dat)
 ```
@@ -97,8 +107,9 @@ Column ***ligand.in.path*** shows the marker ligands released by the current ide
 
 Then we can find the second interactions mediated by specific pathways by identifying the downstream receptor of ligands in the ***ligand.in.path*** columns via findReceptor:
 ```
-select.ident.1 = 6
-test.res.dat <- diffLRpath(Interact=Interact, gsva.mat=gsva.mat, ident.lable=ident.lable, select.ident.1=6)
-
-head(test.res.dat)
+select.ident = 6
+select.ligand = 'Dkk3'
+ident.down.dat <- findReceptor(Interact=Interact, 
+    select.ident=select.ident, 
+    select.ligand=select.ligand)
 ```
