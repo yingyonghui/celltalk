@@ -69,6 +69,8 @@ select.ligand = 'Dkk3'
 ident.down.dat <- findReceptor(Interact=Interact, 
     select.ident=select.ident, 
     select.ligand=select.ligand)
+
+head(ident.down.dat)
 ```
 #### 通路分析
 ```
@@ -113,4 +115,6 @@ select.ligand = 'Dkk3'
 ident.down.dat <- findReceptor(Interact=Interact, 
     select.ident=select.ident, 
     select.ligand=select.ligand)
+
+head(ident.down.dat)
 ```
