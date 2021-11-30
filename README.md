@@ -3,6 +3,7 @@
 celltalk R package can be easily installed from Github using devtools:
 ```
 devtools::install_github("yingyonghui/celltalk")
+library(celltalk)
 ```
 ### Dependencies 
 - [circlize](https://cran.r-project.org/web/packages/circlize/index.html)
