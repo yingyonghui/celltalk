@@ -24,7 +24,7 @@ library(GSVA)
 #### celltalk内置数据集，用于展示celltalk计算过程：
 
 ```
-load('cellTalk.sample.RData')
+data("cellTalkSample",package='celltalk')
 ```
 ***sample.expr*** : expression matrix gene * cell, used as an example
 
@@ -37,10 +37,11 @@ load('cellTalk.sample.RData')
 #### LR关系鉴定
 ```
 # find significant LR pairs
+marker.dat = sample.marker
 species = 'mmusculus'
 logFC.thre = 0.25
 p.thre = 0.01
-Interact <- findLRpairs(sample.marker, 
+Interact <- findLRpairs(marker.dat=sample.marker, 
     species=species, 
     logFC.thre=logFC.thre, 
     p.thre=p.thre)

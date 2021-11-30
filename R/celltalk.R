@@ -26,32 +26,32 @@ circosPlot <- function(Interact,ident=NULL){
 }
 
 #' To find marker ligands and marker receptors
-#' @param all.marker.dat Data frame containing information of marker genes
+#' @param marker.dat Data frame containing information of marker genes
 #' @param species species, either 'hsapiens', 'mmusculus', or 'rnorvegicus' 
 #' @param logFC.thre logFC threshold, marker genes with a logFC > logFC.thre will be considered
 #' @param p.thre p threshold, marker genes with a adjust p value < p.thre will be considered
 #' @return List containing the ligand-receptor interaction information
 #' @export
-findLRpairs <- function(all.marker.dat,species='mmusculus',logFC.thre=0.25,p.thre=0.01){
+findLRpairs <- function(marker.dat,species='mmusculus',logFC.thre=0.25,p.thre=0.01){
 	lr.pair.dat <- cellTalkData$DataLR[[species]]
 	ligs <- lr.pair.dat$L
 	reps <- lr.pair.dat$R
 
-	cluster.level <- as.factor(unique(all.marker.dat$cluster))
+	cluster.level <- as.factor(unique(marker.dat$cluster))
 	num.cluster <- length(cluster.level)
 	Interact.num.mat <- matrix(0,num.cluster,num.cluster)
 	Interact.gene.mat <- matrix(NA,num.cluster,num.cluster)
 	Interact.lig.mat <- matrix(NA,num.cluster,num.cluster)
 	Interact.rep.mat <- matrix(NA,num.cluster,num.cluster)
-	marker.lig.dat <- as.data.frame(matrix(NA,0,ncol(all.marker.dat)))
-	marker.rep.dat <- as.data.frame(matrix(NA,0,ncol(all.marker.dat)))
+	marker.lig.dat <- as.data.frame(matrix(NA,0,ncol(marker.dat)))
+	marker.rep.dat <- as.data.frame(matrix(NA,0,ncol(marker.dat)))
 	for (lig.idx in 1:num.cluster){
 		cluster.l <- cluster.level[lig.idx]
-		markers.l <- all.marker.dat[all.marker.dat$cluster == cluster.l, ]
+		markers.l <- marker.dat[marker.dat$cluster == cluster.l, ]
 		ligands <- markers.l[(markers.l$avg_log2FC > logFC.thre) & (markers.l$p_val_adj < p.thre), 'gene']
 		for (rep.idx in 1:num.cluster){
 			cluster.r <- cluster.level[rep.idx]
-			markers.r <- all.marker.dat[all.marker.dat$cluster == cluster.r, ]
+			markers.r <- marker.dat[marker.dat$cluster == cluster.r, ]
 			receptors <- markers.r[(markers.r$avg_log2FC>logFC.thre) & (markers.r$p_val_adj<p.thre), 'gene']
 			pair.valid <- which((ligs %in% ligands) & (reps %in% receptors))
 			if (length(pair.valid) > 0){
@@ -104,13 +104,13 @@ findLRpairs <- function(all.marker.dat,species='mmusculus',logFC.thre=0.25,p.thr
 }
 
 #' To present a dot plot for specific ligand-receptor pairs in specific clusters
-#' @param all.marker.dat Data frame containing information of marker genes
+#' @param marker.dat Data frame containing information of marker genes
 #' @param Interact Interact list returned by findLRpairs
 #' @param ligand.ident Vector containing the ligand ident
 #' @param receptor.ident Vector containing the receptor ident
 #' @return Dotplot showing the ligand-receptor interaction between the selected ligand.ident and receptor.ident
 #' @export
-dotPlot <- function(all.marker.dat, Interact, ligand.ident=NULL, receptor.ident=NULL){
+dotPlot <- function(marker.dat, Interact, ligand.ident=NULL, receptor.ident=NULL){
 	if (is.null(ligand.ident) & is.null(receptor.ident)){
 		stopifnot("either ligand.ident or ligand.ident need to be asigned"=FALSE)
 	}
@@ -160,11 +160,11 @@ dotPlot <- function(all.marker.dat, Interact, ligand.ident=NULL, receptor.ident=
 		current.lig <- inter.ident.unfold.dat[each.row,'Lig']
 		current.rep <- inter.ident.unfold.dat[each.row,'Rep']
 
-		fc.lig <- all.marker.dat[all.marker.dat$cluster==current.from,][current.lig, 'avg_log2FC']
-		p.lig <- all.marker.dat[all.marker.dat$cluster==current.from,][current.lig, 'p_val_adj']
+		fc.lig <- marker.dat[marker.dat$cluster==current.from,][current.lig, 'avg_log2FC']
+		p.lig <- marker.dat[marker.dat$cluster==current.from,][current.lig, 'p_val_adj']
 		
-		fc.rep <- all.marker.dat[all.marker.dat$cluster==current.to,][current.rep, 'avg_log2FC']
-		p.rep <- all.marker.dat[all.marker.dat$cluster==current.to,][current.rep,'p_val_adj']
+		fc.rep <- marker.dat[marker.dat$cluster==current.to,][current.rep, 'avg_log2FC']
+		p.rep <- marker.dat[marker.dat$cluster==current.to,][current.rep,'p_val_adj']
 
 		### if the ligand have a FC > logFC.thre and a p.adj < p.thre
 		### and if the receptor have a FC > logFC.thre and a p.adj < p.thre
