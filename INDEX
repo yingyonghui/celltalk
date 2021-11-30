@@ -1,0 +1,11 @@
+diffLRpath              To find different enriched pathway between two
+                        group cells
+dotPlot                 To present a dot plot for specific
+                        ligand-receptor pairs in specific clusters
+findLRpairs             To find marker ligands and marker receptors
+findLRpath              To find those pathways in which the genesets
+                        show overlap with the marker ligand and
+                        receptor genes in our dataset
+findReceptor            To find the downstream identity class of
+                        specific ligand released by specific upstream
+                        identity class
