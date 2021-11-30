@@ -12,19 +12,19 @@ circosPlot <- function(Interact,filename='circos.pdf',ident=NULL){
   if (is.null(ident)){
     chordDiagram(Interact.num.dat,annotationTrack = c("name","grid"),transparency=0.1)
 
-  }else{
+    }else{
 
-    cols <- rep('gray',nrow(Interact.num.dat))
-    cols[(Interact.num.dat$Cell.From==ident) | (Interact.num.dat$Cell.To==ident)] <- 'red'
-    chordDiagram(Interact.num.dat,annotationTrack = c("name","grid"),transparency=0.1,col=cols)
+      cols <- rep('gray',nrow(Interact.num.dat))
+      cols[(Interact.num.dat$Cell.From==ident) | (Interact.num.dat$Cell.To==ident)] <- 'red'
+      chordDiagram(Interact.num.dat,annotationTrack = c("name","grid"),transparency=0.1,col=cols)
 
-  }
+    }
   dev.off()
 }
 
 #' To find marker ligands and marker receptors
 #' @param all.marker.dat Data frame containing information of marker genes
-#' @param species species, either 'hsapiens', 'mmusculus', or 'rnorvegicus'
+#' @param species species, either 'hsapiens', 'mmusculus', or 'rnorvegicus' 
 #' @param logFC.thre logFC threshold, marker genes with a logFC > logFC.thre will be considered
 #' @param p.thre p threshold, marker genes with a adjust p value < p.thre will be considered
 #' @return List containing the ligand-receptor interaction information
@@ -87,7 +87,7 @@ findLRpairs <- function(all.marker.dat,species='mmusculus',logFC.thre=0.25,p.thr
   }
   lr.split.list <- sapply((unlist(lr.split.list)), function(ident.LR.info){
     strsplit(ident.LR.info, split='--')
-  })
+    })
   lr.unfold.dat <- as.data.frame(t(as.data.frame(lr.split.list)))
   colnames(lr.unfold.dat) <- c('Cell.From','Cell.To','Ligand','Receptor')
   rownames(lr.unfold.dat) <- paste(lr.unfold.dat$Cell.From,lr.unfold.dat$Cell.To,lr.unfold.dat$Ligand,lr.unfold.dat$Receptor, sep='--')
@@ -138,7 +138,7 @@ dotPlot <- function(all.marker.dat, Interact, ligand.ident=NULL, receptor.ident=
   names(lr.ident.pair) <- NULL
   lr.ident.pair <- unique(lr.ident.pair)
 
-  lr.ident.split.pair <- sapply(lr.ident.pair, function(x){strsplit(x,split='-')})
+  lr.ident.split.pair <- sapply(lr.ident.pair, function(x){strsplit(x,split='--')})
   ident.ligs <- unlist(lapply(lr.ident.split.pair,function(x){x[1]}))
   ident.reps <- unlist(lapply(lr.ident.split.pair,function(x){x[2]}))
 
@@ -146,7 +146,7 @@ dotPlot <- function(all.marker.dat, Interact, ligand.ident=NULL, receptor.ident=
   inter.ident.unfold.dat$Lig <- rep(ident.ligs, each=nrow(inter.ident.dat))
   inter.ident.unfold.dat$Rep <- rep(ident.reps, each=nrow(inter.ident.dat))
   inter.ident.unfold.dat$LR.Info <- paste0(inter.ident.unfold.dat$Lig,' --> ',inter.ident.unfold.dat$Rep)
-  ### fc.lr and p.lr are to save the measured FC and pval of each LR pair
+  ### fc.lr and p.lr are to save the measured FC and pval of each LR pair 
   fc.lr <- c()
   p.lr <- c()
   for (each.row in 1:nrow(inter.ident.unfold.dat)){
@@ -157,7 +157,7 @@ dotPlot <- function(all.marker.dat, Interact, ligand.ident=NULL, receptor.ident=
 
     fc.lig <- all.marker.dat[all.marker.dat$cluster==current.from,][current.lig, 'avg_log2FC']
     p.lig <- all.marker.dat[all.marker.dat$cluster==current.from,][current.lig, 'p_val_adj']
-
+    
     fc.rep <- all.marker.dat[all.marker.dat$cluster==current.to,][current.rep, 'avg_log2FC']
     p.rep <- all.marker.dat[all.marker.dat$cluster==current.to,][current.rep,'p_val_adj']
 
@@ -170,13 +170,13 @@ dotPlot <- function(all.marker.dat, Interact, ligand.ident=NULL, receptor.ident=
       fc.lr <- c(fc.lr, NA)
       p.lr <- c(p.lr, NA)
     }
-
+    
   }
 
   inter.ident.unfold.dat$Log2FC_LR <- fc.lr
   inter.ident.unfold.dat$P_LR <- p.lr
   inter.ident.unfold.dat$Log_P_adj <- -log10(p.adjust(p.lr, method='BH'))
-  inter.ident.unfold.dat[which(inter.ident.unfold.dat$Log_P_adj > 30), 'Log_P_adj'] <- 30
+  inter.ident.unfold.dat[which(inter.ident.unfold.dat$Log_P_adj > 30), 'Log_P_adj'] <- 30 
 
 
   if (length(ligand.ident)==1){
@@ -185,9 +185,9 @@ dotPlot <- function(all.marker.dat, Interact, ligand.ident=NULL, receptor.ident=
     x.title <- paste0('Ligand clusters to cluster ',receptor.ident)
   }
 
-  plot <- ggplot(inter.ident.unfold.dat,aes(as.character(Xaxis),LR.Info)) +
+  plot <- ggplot(inter.ident.unfold.dat,aes(as.character(Xaxis),LR.Info)) + 
     geom_point(aes(size=Log2FC_LR,col=Log_P_adj)) +
-    scale_colour_gradient(low="green",high="red") +
+    scale_colour_gradient(low="green",high="red") + 
     labs(color='-log10(p.adjust)',size='Log2FC',x=x.title,y="")
   return(plot)
 }
@@ -198,17 +198,13 @@ dotPlot <- function(all.marker.dat, Interact, ligand.ident=NULL, receptor.ident=
 #' @return Interact list containing the ligand-receptor interaction information and the pathways showing overlap with the marker ligand and receptor genes in the dataset
 #' @export
 findLRpath <- function(Interact=Interact){
-  path.dat <- cellTalkData$DataPathway[[Interact$species]]
-  func_geneset <- path.dat$func_gene
-  names(func_geneset) <- path.dat$func_name
-  path.list <- sapply(func_geneset, function(x){ strsplit(x,split=',')})
-
+  path.list <- cellTalkData$DataPathway[[Interact$species]]
   marker.lig.dat <- Interact$markerL
   marker.rep.dat <- Interact$markerR
   lr.gene <- unique(c(marker.lig.dat$gene,marker.rep.dat$gene))
-
+  
   which.overlap.list <- unlist(
-    lapply(path.list, function(x){
+    lapply(path.list, function(x){ 
       if(any(x %in% lr.gene)){ return(TRUE) }else{return(FALSE)}
     }))
   path.lr.list <- path.list[which(which.overlap.list)]
@@ -241,10 +237,10 @@ diffLRpath <- function(Interact,gsva.mat,ident.lable,select.ident.1,select.ident
   ident.rep.gene <- marker.ident1.rep.dat$Receptor
   which.overlap.list <-lapply(path.lr.list, function(x){
     overlap.idx <-  x %in% ident.rep.gene
-    if(any(overlap.idx)){
-      return(paste(x[overlap.idx],collapse=','))
-    }else{
-      return(FALSE)
+      if(any(overlap.idx)){ 
+        return(paste(x[overlap.idx],collapse=',')) 
+      }else{
+        return(FALSE)
     }
   })
   overlap.rep.list <- which.overlap.list[which(which.overlap.list!='FALSE')]
@@ -277,8 +273,8 @@ diffLRpath <- function(Interact,gsva.mat,ident.lable,select.ident.1,select.ident
   test.res.dat$p.val.adj <- p.adjust(test.res.dat$p.val, method='BH')
   test.res.dat$description <- names(t.result)
   test.res.dat$receptor.in.path <- unlist(overlap.rep.list)
-
-  ### to find the upstream ident and ligand the ident.1 recieved
+  
+  ### to find the upstream ident and ligand the ident.1 recieved 
   test.res.dat$cell.up <- NA
   test.res.dat$ligand.up <- NA
   for (each.row in 1:nrow(test.res.dat)){
