@@ -78,7 +78,7 @@ head(ident.down.dat)
 ```
 # find pathways in which genesets show overlap 
 # with the ligands and receptors in the example dataset
-Interact <- findLRpath(Interact=Interact)
+Interact <- findLRpath(Interact=Interact, category='all')
 ```
 Now genesets show overlap with the ligands and receptors in the exsample dataset are saved in Interact[['pathwayLR']]
 

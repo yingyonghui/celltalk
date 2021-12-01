@@ -32,7 +32,7 @@ circosPlot <- function(Interact,ident=NULL){
 #' @param p.thre p threshold, marker genes with a adjust p value < p.thre will be considered
 #' @return List containing the ligand-receptor interaction information
 #' @export
-findLRpairs <- function(marker.dat,species='mmusculus',logFC.thre=0.25,p.thre=0.01){
+findLRpairs <- function(marker.dat, species, logFC.thre=0.25, p.thre=0.01){
 	options(stringsAsFactors=F)
 	data('cellTalkData', package=('celltalk'))
 
@@ -209,13 +209,17 @@ dotPlot <- function(marker.dat, Interact, ligand.ident=NULL, receptor.ident=NULL
 
 #' To find those pathways in which the genesets show overlap with the marker ligand and receptor genes in our dataset
 #' @param Interact Interact list returned by findLRpairs
+#' @param category Character to indicate which pathway to investigate; one of "go", "kegg", 'wikipathway', and "reactome", or "all" for all pathways
 #' @return Interact list containing the ligand-receptor interaction information and the pathways showing overlap with the marker ligand and receptor genes in the dataset
 #' @export
-findLRpath <- function(Interact=Interact){
+findLRpath <- function(Interact, category='all'){
 	options(stringsAsFactors=F)
 	data('cellTalkData', package=('celltalk'))
-
-	path.list <- cellTalkData$DataPathway[[Interact$species]]
+	if (category=='all'){
+		path.list <- cellTalkData$DataPathway[[Interact$species]]
+	}else if(category=='wikipathway'){
+		path.list <- cellTalkData$DataWikiPathway[[Interact$species]]
+	}
 	marker.lig.dat <- Interact$markerL
 	marker.rep.dat <- Interact$markerR
 	lr.gene <- unique(c(marker.lig.dat$gene,marker.rep.dat$gene))
@@ -342,7 +346,7 @@ findReceptor <- function(Interact, select.ident=NULL, select.ligand=NULL){
 #' @param method Method for hypothesis test, either 't.test' or 'wilcox.test'
 #' @return Dataframe including the statistic result
 #' @export
-pathTest <- function(gsva.ident.mat,group,select.ident.1,select.ident.2=NULL, method='t.test'){
+pathTest <- function(gsva.ident.mat, group, select.ident.1, select.ident.2=NULL, method='t.test'){
 	if (method=='t.test'){
 		if (is.null(select.ident.2)){
 		t.result <- apply(gsva.ident.mat,1,function(geneExpr){

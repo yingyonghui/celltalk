@@ -4,10 +4,12 @@
 \alias{findLRpath}
 \title{To find those pathways in which the genesets show overlap with the marker ligand and receptor genes in our dataset}
 \usage{
-findLRpath(Interact = Interact)
+findLRpath(Interact, category = "all")
 }
 \arguments{
 \item{Interact}{Interact list returned by findLRpairs}
+
+\item{category}{Character to indicate which pathway to investigate; one of "go", "kegg", 'wikipathway', and "reactome", or "all" for all pathways}
 }
 \value{
 Interact list containing the ligand-receptor interaction information and the pathways showing overlap with the marker ligand and receptor genes in the dataset
