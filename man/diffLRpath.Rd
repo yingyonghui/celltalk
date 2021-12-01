@@ -9,7 +9,8 @@ diffLRpath(
   gsva.mat,
   ident.lable,
   select.ident.1,
-  select.ident.2 = NULL
+  select.ident.2 = NULL,
+  method = "t.test"
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ diffLRpath(
 \item{select.ident.1}{Identity class to define cells for group 1}
 
 \item{select.ident.2}{Identity class to define cells for group 2 for comparison; if 'NULL', use all other cells for comparison}
+
+\item{method}{Method used for differential enrichment analysis, either 't.test' of 'wilcox.test'}
 }
 \value{
 Dataframe including the statistic result comparing the pathway enrichment sorces between group 1 and group 2, the significant recetor and ligand of group 1 in the pathways, and the corresponding up stream identity class which interact with group 1 by releasing specific ligand

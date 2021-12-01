@@ -1,11 +1,12 @@
 # celltalk
+celltalk is an R package for inference and analysis of ligand-receptor interactions from single cell RNA sequencing data
 ## Installation
 celltalk R package can be easily installed from Github using devtools:
 ```
 devtools::install_github("yingyonghui/celltalk")
 library(celltalk)
 ```
-### Dependencies 
+### Dependencies
 - [circlize](https://cran.r-project.org/web/packages/circlize/index.html)
 - [ggplot2](https://cran.r-project.org/web/packages/ggplot2/index.html)
 - [dplyr](https://cran.r-project.org/web/packages/dplyr/index.html)
@@ -87,6 +88,8 @@ gsva analysis：
 # to save time, we have precomputed gsva score and saved it in the varible *gsva.mat*
 # gsva.mat <- gsva(sample.expr, Interact[['pathwayLR']], min.sz=10, parallel.sz=10)
 ```
+gsva pathway heatmap, to display the highly variable pathways among all cells (待实现)
+
 
 Pathway differential enrichment analysis：
 ```
@@ -97,7 +100,8 @@ select.ident.1 = 6
 test.res.dat <- diffLRpath(Interact=Interact, 
     gsva.mat=gsva.mat, 
     ident.lable=ident.lable, 
-    select.ident.1=6)
+    select.ident.1=6,
+    method='t.test')
 
 head(test.res.dat)
 ```
