@@ -29,6 +29,7 @@ circosPlot <- function(Interact,ident=NULL){
 #' @param expr.mat Matrix or data frame of expression matrix, with genes in rows and cells in columns
 #' @param lable  Vector of identity classes of cells in the expression matrix
 #' @param method Method used for differential expression test, either 'wilcox.test' or 't.test'
+#' @param p.adjust Method used for p value correction for multiple differential expression test; see p.adjust function for more information
 #' @return Data frame containing the differential expression test
 #' @export
 findDEGs <- function(expr.mat, lable, method='wilcox.test', p.adjust='BH'){
