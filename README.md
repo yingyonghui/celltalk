@@ -32,9 +32,19 @@ data("cellTalkSample",package='celltalk')
 
 ***sample.lable*** : vector  of identity classes of cells in the expression matrix
 
-***sample.marker*** : data frame of marker genes for each identity class, usually calculated by FindAllMarkers from Seurat
+***sample.marker*** : data frame of marker genes for each identity class, usually calculated by FindAllMarkers from [Seurat](https://satijalab.org/seurat/)
 
 ***gsva.mat*** : precomputed gsva scores for the example dataset
+#### marker gene鉴定
+Firstly we're supposed to identify marker genes for each identity class of cells in the expression matrix. celltalk provide **findDEGs** to identify these markers by *t.test* or *wilcox.test*.  
+```
+# to save time, we have pre-identified marker genes 
+# and saved it in the varible sample.marker
+expr.mat = sample.expr
+lable = sample.lable
+method = 'wilcox.test'
+# sample.marker <- findDEGs(expr.mat, lable, method)
+```
 
 #### LR关系鉴定
 ```

@@ -26,6 +26,71 @@ circosPlot <- function(Interact,ident=NULL){
 }
 
 #' To find marker ligands and marker receptors
+#' @param expr.mat Matrix or data frame of expression matrix, with genes in rows and cells in columns
+#' @param lable  Vector of identity classes of cells in the expression matrix
+#' @param method Method used for differential expression test, either 'wilcox.test' or 't.test'
+#' @return Data frame containing the differential expression test
+#' @export
+findDEGs <- function(expr.mat, lable, method='wilcox.test', p.adjust='BH'){
+	if (!is.factor(lable)){ lable <- as.factor(lable) }
+	ident.level <- levels(lable)
+	
+	lable <- as.character(lable)
+	### p.value calculated
+	if (method=='wilcox.test'){
+		test.all.res <- lapply(ident.level, function(each.level) {
+			print(paste0('Identifying marker genes for cluster ',each.level,' ...'))
+			cell.ident <- which(lable==each.level)
+			cell.other <- which(lable!=each.level)
+
+			test.res <- apply(expr.mat, 1, function(row.expr){
+				logFC <- log(mean(expm1(row.expr[cell.ident])) +1, base=2) - log(mean(expm1(row.expr[cell.other])) +1, base=2)
+				p.value <- wilcox.test(x=row.expr[cell.ident], y=row.expr[cell.other])$p.value
+				c(logFC, p.value)
+			})
+
+			test.res <- as.data.frame(t(test.res))
+			colnames(test.res) <- c('avg_log2FC','p_val')
+			test.res$p_val_adj <- p.adjust(test.res$p_val, method=p.adjust)
+			test.res$cluster <- each.level
+			test.res$gene <- rownames(test.res)
+			return(test.res)
+
+		})
+		test.all.res <- do.call(rbind, test.all.res)
+	}else if(method=='t.test'){
+		test.all.res <- lapply(ident.level, function(each.level) {
+			print(paste0('Identify marker genes for ',each.level,' ...'))
+			cell.ident <- which(lable==each.level)
+			cell.other <- which(lable!=each.level)
+
+			test.res <- apply(expr.mat, 1, function(row.expr){
+				logFC <- log(mean(expm1(row.expr[cell.ident])) +1, base=2) - log(mean(expm1(row.expr[cell.other])) +1, base=2)
+				p.value <- t.test(x=row.expr[cell.ident], y=row.expr[cell.other])$p.value
+				c(logFC, p.value)
+			})
+
+			test.res <- as.data.frame(t(test.res))
+			colnames(test.res) <- c('avg_log2FC','p_val')
+			test.res$p_val_adj <- p.adjust(test.res$p_val, method=p.adjust)
+			test.res$cluster <- each.level
+			test.res$gene <- rownames(test.res)
+			return(test.res)
+
+		})
+		test.all.res <- do.call(rbind, test.all.res)
+	}else{
+		stop("select t.test or wilcox.test to conduct differential analysis")
+	}
+
+	return(test.all.res)
+}
+
+
+
+
+
+#' To find marker ligands and marker receptors
 #' @param marker.dat Data frame containing information of marker genes
 #' @param species species, either 'hsapiens', 'mmusculus', or 'rnorvegicus' 
 #' @param logFC.thre logFC threshold, marker genes with a logFC > logFC.thre will be considered
