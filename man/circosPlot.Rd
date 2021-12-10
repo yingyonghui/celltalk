@@ -4,12 +4,16 @@
 \alias{circosPlot}
 \title{To present a circos plot}
 \usage{
-circosPlot(Interact, ident = NULL)
+circosPlot(Interact, order = NULL, col = NULL, ident = NULL)
 }
 \arguments{
 \item{Interact}{Interact list returned by findLRpairs}
 
-\item{ident}{To highlight the interaction of a specific identity class between others; if 'NULL', plot interaction for all identity classes}
+\item{order}{Vector of orders of the identities arround the circos plot}
+
+\item{col}{Vector of colors of each identity; names of the col vector are supposed to be assigned to indicate each color for each identity.}
+
+\item{ident}{To highlight the interaction between a specific identity class and others; if 'NULL', plot interaction for all identity classes}
 }
 \value{
 Circos plot showing the ligand-receptor interaction

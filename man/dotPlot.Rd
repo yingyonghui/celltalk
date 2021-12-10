@@ -4,16 +4,24 @@
 \alias{dotPlot}
 \title{To present a dot plot for specific ligand-receptor pairs in specific clusters}
 \usage{
-dotPlot(marker.dat, Interact, ligand.ident = NULL, receptor.ident = NULL)
+dotPlot(
+  Interact,
+  ligand.ident = NULL,
+  receptor.ident = NULL,
+  ident.levels = NULL,
+  return.data = FALSE
+)
 }
 \arguments{
-\item{marker.dat}{Data frame containing information of marker genes}
-
 \item{Interact}{Interact list returned by findLRpairs}
 
 \item{ligand.ident}{Vector containing the ligand ident}
 
 \item{receptor.ident}{Vector containing the receptor ident}
+
+\item{ident.levels}{Vector of levels of the identities}
+
+\item{return.data}{Logical value indicating whether to return the data for the plot or not}
 }
 \value{
 Dotplot showing the ligand-receptor interaction between the selected ligand.ident and receptor.ident

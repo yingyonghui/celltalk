@@ -7,7 +7,7 @@
 diffLRpath(
   Interact,
   gsva.mat,
-  ident.lable,
+  ident.label,
   select.ident.1,
   select.ident.2 = NULL,
   method = "t.test"
@@ -18,7 +18,7 @@ diffLRpath(
 
 \item{gsva.mat}{Matrix containing the pathway enrichment sorces, with rows representing pathways and columns representing cells. Pathway scores are usually computed from gsva, or other methods aiming to measure the pathway enrichment in cells}
 
-\item{ident.lable}{Vector indicating the identity lables of cells, and the order of lables are required to match order of cells (columns) in the gsva.mat}
+\item{ident.label}{Vector indicating the identity labels of cells, and the order of labels are required to match order of cells (columns) in the gsva.mat}
 
 \item{select.ident.1}{Identity class to define cells for group 1}
 

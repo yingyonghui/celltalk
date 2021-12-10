@@ -28,22 +28,23 @@ library(GSVA)
 ```
 data("cellTalkSample",package='celltalk')
 ```
-***sample.expr*** : expression matrix gene * cell, used as an example
+***sample.expr*** : expression matrix of gene * cell. Expression values are required to be first normalized by the library-size and log-transformed
 
-***sample.lable*** : vector  of identity classes of cells in the expression matrix
+***sample.label*** : vector  of identity classes of cells in the expression matrix
 
 ***sample.marker*** : data frame of marker genes for each identity class, usually calculated by FindAllMarkers from [Seurat](https://satijalab.org/seurat/)
 
 ***gsva.mat*** : precomputed gsva scores for the example dataset
 #### marker gene鉴定
-Firstly we're supposed to identify marker genes for each identity class of cells in the expression matrix. celltalk provide **findDEGs** to identify these markers by *t.test* or *wilcox.test*.  
+Firstly we're supposed to identify marker genes for each identity class of cells in the expression matrix. celltalk provide **findLRmarker** to identify these markers by *t.test* or *wilcox.test*.
 ```
 # to save time, we have pre-identified marker genes 
 # and saved it in the varible sample.marker
 expr.mat = sample.expr
-lable = sample.lable
+label = sample.label
+species = 'mmusculus'
 method = 'wilcox.test'
-# sample.marker <- findDEGs(expr.mat, lable, method)
+sample.marker <- findLRmarker(expr.mat, label, species, method)
 ```
 
 #### LR关系鉴定
@@ -65,13 +66,18 @@ Interact <- findLRpairs(marker.dat=sample.marker,
 
 根据交互数量做circos plot：
 ```
+# plot interaction for all cluster
 circosPlot(Interact=Interact)
+# you may want to highlight the interaction of specific cluster
+ident=1
+circosPlot(Interact=Interact, ident=ident)
 ```
+
 LR相互作用dotplot：
 ```
 # present a dot plot of LR pairs for specific clusters
 receptor.ident=6
-dotPlot(sample.marker, Interact=Interact, receptor.ident=receptor.ident)
+dotPlot(Interact=Interact, receptor.ident=receptor.ident)
 ```
 
 For specific upstream cells and their ligands, find the downstream cells and their receptors：
@@ -105,11 +111,11 @@ Pathway differential enrichment analysis：
 ```
 # to find the different enriched pathways for cells in the selected identity class 
 # and the receptor and ligand in the pathway
-ident.lable = sample.lable
+ident.label = sample.label
 select.ident.1 = 6
 test.res.dat <- diffLRpath(Interact=Interact, 
     gsva.mat=gsva.mat, 
-    ident.lable=ident.lable, 
+    ident.label=ident.label, 
     select.ident.1=6,
     method='t.test')
 
@@ -133,3 +139,4 @@ ident.down.dat <- findReceptor(Interact=Interact,
 
 head(ident.down.dat)
 ```
+#### 通路介导的细胞交互

@@ -3,7 +3,7 @@
 export(circosPlot)
 export(diffLRpath)
 export(dotPlot)
-export(findDEGs)
+export(findLRmarker)
 export(findLRpairs)
 export(findLRpath)
 export(findReceptor)

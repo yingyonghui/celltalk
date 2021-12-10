@@ -1,48 +1,114 @@
 # mycolors <- hue_pal(c=100)(25)
+data('cellTalkData', package=('celltalk'))
 
 #' To present a circos plot
 #' @param Interact Interact list returned by findLRpairs
-#' @param ident To highlight the interaction of a specific identity class between others; if 'NULL', plot interaction for all identity classes
+#' @param order Vector of orders of the identities arround the circos plot
+#' @param col Vector of colors of each identity; names of the col vector are supposed to be assigned to indicate each color for each identity.
+#' @param ident To highlight the interaction between a specific identity class and others; if 'NULL', plot interaction for all identity classes
 #' @return Circos plot showing the ligand-receptor interaction
 #' @export
-circosPlot <- function(Interact,ident=NULL){
+circosPlot <- function(Interact, order=NULL, col=NULL, ident=NULL){
 	options(stringsAsFactors=F)
 	Interact.num.dat <- Interact$InteractNumer
-	# Interact.num.dat = Interact.num.dat[Interact.num.dat$LR.Number!=0,]
-	# cluster <- unique(c(Interact.num.dat$Cell.From,Interact.num.dat$Cell.To))
-	# mycolors <- hue_pal(c=100)(length(cluster))
+	Interact.num.dat = Interact.num.dat[Interact.num.dat$LR.Number!=0,]
+	all.ident <- unique(c(Interact.num.dat$Cell.From,Interact.num.dat$Cell.To))
+
+	### to check the order parameter
+	if(!is.null(order)){
+		if (all(all.ident %in% order)){
+			# Interact.num.dat$Cell.From <- factor(Interact.num.dat$Cell.From, levels=order)
+			# Interact.num.dat$Cell.To <- factor(Interact.num.dat$Cell.To, levels=order)
+			# Interact.num.dat <- Interact.num.dat[order(Interact.num.dat$Cell.From,Interact.num.dat$Cell.To),]
+			all.ident <- unique(c(Interact.num.dat$Cell.From,Interact.num.dat$Cell.To))
+			all.ident <- factor(all.ident, levels=order)
+			all.ident <- all.ident[order(all.ident)]
+		}else{
+			ident.missed <- all.ident[!(all.ident %in% order)]
+			ident.missed <- pasteIdent(ident.missed)
+			stop(paste0('the ident class ',ident.missed,' may be missed in the input order'))
+		}
+	}
+	
+	### to check the col parameter
+	if (is.null(col)){ 
+		col <- scales::hue_pal(c=100)(length(all.ident))
+		names(col) <- all.ident
+	}else{
+		if (is.null(names(col))){
+			stop('the cols should be named according to the identity class')
+		}else{
+			colo.name <- names(col)
+			ident.missed <- all.ident[!(all.ident %in% colo.name)]
+			ident.missed <- pasteIdent(ident.missed)
+			stop(paste0('the ident class ',ident.missed,' may be missed in the input color'))
+		}
+	}
+
 	circos.clear()
 	circos.par(start.degree=90, clock.wise=F)
+
+	### plot interaction for all identity classes
 	if (is.null(ident)){
-		chordDiagram(Interact.num.dat,annotationTrack = c("name","grid"),transparency=0.1)
+		chordDiagram(Interact.num.dat, order=all.ident, grid.col=col, annotationTrack=c("name","grid"), transparency=0.1, directional=1, direction.type='arrows', link.arr.type = "big.arrow", preAllocateTracks = list(track.height=max(strwidth(all.ident))), annotationTrackHeight=convert_height(c(1, 2), "mm"))
 
-		}else{
-
-			cols <- rep('gray',nrow(Interact.num.dat))
-			cols[(Interact.num.dat$Cell.From==ident) | (Interact.num.dat$Cell.To==ident)] <- 'red'
-			chordDiagram(Interact.num.dat,annotationTrack = c("name","grid"),transparency=0.1,col=cols)
-
+	}else{
+		### highlight the interaction for a specific identity class
+		### check the ident parameter
+		if (!(all(ident %in% all.ident)) | length(ident)>1){
+			stop(paste0('select one identity class from ', pasteIdent(all.ident)))
 		}
+
+		line.col <- rep('gray',nrow(Interact.num.dat))
+		line.col[(Interact.num.dat$Cell.From==ident)] <- col[as.character(ident)]
+		ident.lig = Interact.num.dat[Interact.num.dat$Cell.To==ident,'Cell.From']
+		line.col[(Interact.num.dat$Cell.To==ident)] <- col[as.character(ident.lig)]
+		
+		link.rank <- 1:nrow(Interact.num.dat)
+		ident.line <- (Interact.num.dat$Cell.From==ident) | (Interact.num.dat$Cell.To==ident)
+		link.rank[!ident.line] <- rank(-(Interact.num.dat[!ident.line,'LR.Number']))
+		link.rank[ident.line] <- rank(-(Interact.num.dat[ident.line,'LR.Number']))+length(which(!ident.line))
+		chordDiagram(Interact.num.dat, order=all.ident, grid.col=col, annotationTrack=c("name","grid"), transparency=0.1, directional=1, direction.type='arrows', link.arr.type = "big.arrow", link.rank=link.rank, col=line.col, preAllocateTracks = list(track.height=max(strwidth(all.ident))), annotationTrackHeight=convert_height(c(1, 2), "mm"))
+	}
 }
 
-#' To find marker ligands and marker receptors
+#' To identify marker ligands and marker receptors in the expression matrix
 #' @param expr.mat Matrix or data frame of expression matrix, with genes in rows and cells in columns
-#' @param lable  Vector of identity classes of cells in the expression matrix
+#' @param label  Vector of identity classes of cells in the expression matrix
+#' @param species  Species, either 'hsapiens', 'mmusculus', or 'rnorvegicus' 
 #' @param method Method used for differential expression test, either 'wilcox.test' or 't.test'
 #' @param p.adjust Method used for p value correction for multiple differential expression test; see p.adjust function for more information
 #' @return Data frame containing the differential expression test
 #' @export
-findDEGs <- function(expr.mat, lable, method='wilcox.test', p.adjust='BH'){
-	if (!is.factor(lable)){ lable <- as.factor(lable) }
-	ident.level <- levels(lable)
+findLRmarker <- function(expr.mat, label, species, method='wilcox.test', p.adjust='BH'){
+	if (length(species)>1){
+		stop("select one species once")
+	}
+	if (!(species %in% c('hsapiens', 'mmusculus', 'rnorvegicus'))){
+		stop("select one species from 'hsapiens', 'mmusculus', and 'rnorvegicus'")
+	}
+
+	lr.pair.dat <- cellTalkData$DataLR[[species]]
+	all.lig.reps <- unique(c(lr.pair.dat$L, lr.pair.dat$R))
+	expr.mat <- expr.mat[which(rownames(expr.mat) %in% all.lig.reps), ]
+	if (nrow(expr.mat)==0){
+		stop("there is no ligand or receptor detected in the expression matrix!")
+	}
+
+	if (!is.factor(label)){ label <- as.factor(label) }
+	ident.level <- levels(label)
 	
-	lable <- as.character(lable)
+	label <- as.character(label)
 	### p.value calculated
-	if (method=='wilcox.test'){
+	if (method!='wilcox.test' & method!='t.test'){
+		stop("select t.test or wilcox.test to conduct differential analysis")
+	}
+
+	if(method=='wilcox.test'){
 		test.all.res <- lapply(ident.level, function(each.level) {
 			print(paste0('Identifying marker genes for cluster ',each.level,' ...'))
-			cell.ident <- which(lable==each.level)
-			cell.other <- which(lable!=each.level)
+			cell.ident <- which(label==each.level)
+			cell.other <- which(label!=each.level)
 
 			test.res <- apply(expr.mat, 1, function(row.expr){
 				logFC <- log(mean(expm1(row.expr[cell.ident])) +1, base=2) - log(mean(expm1(row.expr[cell.other])) +1, base=2)
@@ -59,11 +125,11 @@ findDEGs <- function(expr.mat, lable, method='wilcox.test', p.adjust='BH'){
 
 		})
 		test.all.res <- do.call(rbind, test.all.res)
-	}else if(method=='t.test'){
+	}else{
 		test.all.res <- lapply(ident.level, function(each.level) {
 			print(paste0('Identify marker genes for ',each.level,' ...'))
-			cell.ident <- which(lable==each.level)
-			cell.other <- which(lable!=each.level)
+			cell.ident <- which(label==each.level)
+			cell.other <- which(label!=each.level)
 
 			test.res <- apply(expr.mat, 1, function(row.expr){
 				logFC <- log(mean(expm1(row.expr[cell.ident])) +1, base=2) - log(mean(expm1(row.expr[cell.other])) +1, base=2)
@@ -80,27 +146,20 @@ findDEGs <- function(expr.mat, lable, method='wilcox.test', p.adjust='BH'){
 
 		})
 		test.all.res <- do.call(rbind, test.all.res)
-	}else{
-		stop("select t.test or wilcox.test to conduct differential analysis")
 	}
 
 	return(test.all.res)
 }
 
-
-
-
-
 #' To find marker ligands and marker receptors
 #' @param marker.dat Data frame containing information of marker genes
-#' @param species species, either 'hsapiens', 'mmusculus', or 'rnorvegicus' 
+#' @param species Species, either 'hsapiens', 'mmusculus', or 'rnorvegicus' 
 #' @param logFC.thre logFC threshold, marker genes with a logFC > logFC.thre will be considered
 #' @param p.thre p threshold, marker genes with a adjust p value < p.thre will be considered
 #' @return List containing the ligand-receptor interaction information
 #' @export
-findLRpairs <- function(marker.dat, species, logFC.thre=0.25, p.thre=0.01){
+findLRpairs <- function(marker.dat, species, logFC.thre=0, p.thre=0.05){
 	options(stringsAsFactors=F)
-	data('cellTalkData', package=('celltalk'))
 
 	lr.pair.dat <- cellTalkData$DataLR[[species]]
 	ligs <- lr.pair.dat$L
@@ -176,14 +235,16 @@ findLRpairs <- function(marker.dat, species, logFC.thre=0.25, p.thre=0.01){
 }
 
 #' To present a dot plot for specific ligand-receptor pairs in specific clusters
-#' @param marker.dat Data frame containing information of marker genes
 #' @param Interact Interact list returned by findLRpairs
 #' @param ligand.ident Vector containing the ligand ident
 #' @param receptor.ident Vector containing the receptor ident
+#' @param ident.levels Vector of levels of the identities 
+#' @param return.data Logical value indicating whether to return the data for the plot or not
 #' @return Dotplot showing the ligand-receptor interaction between the selected ligand.ident and receptor.ident
 #' @export
-dotPlot <- function(marker.dat, Interact, ligand.ident=NULL, receptor.ident=NULL){
+dotPlot <- function(Interact, ligand.ident=NULL, receptor.ident=NULL, ident.levels=NULL, return.data=FALSE){
 	options(stringsAsFactors=F)
+	#colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(100)
 	if (is.null(ligand.ident) & is.null(receptor.ident)){
 		stop("either ligand.ident or ligand.ident need to be asigned")
 	}
@@ -226,7 +287,9 @@ dotPlot <- function(marker.dat, Interact, ligand.ident=NULL, receptor.ident=NULL
 	inter.ident.unfold.dat$Lig <- rep(ident.ligs, each=nrow(inter.ident.dat))
 	inter.ident.unfold.dat$Rep <- rep(ident.reps, each=nrow(inter.ident.dat))
 	inter.ident.unfold.dat$LR.Info <- paste0(inter.ident.unfold.dat$Lig,' --> ',inter.ident.unfold.dat$Rep)
-	### fc.lr and p.lr are to save the measured FC and pval of each LR pair 
+	### fc.lr and p.lr are to save the measured FC and pval of each LR pair
+	markerL.dat <- Interact$markerL 
+	markerR.dat <- Interact$markerR 
 	fc.lr <- c()
 	p.lr <- c()
 	for (each.row in 1:nrow(inter.ident.unfold.dat)){
@@ -235,17 +298,19 @@ dotPlot <- function(marker.dat, Interact, ligand.ident=NULL, receptor.ident=NULL
 		current.lig <- inter.ident.unfold.dat[each.row,'Lig']
 		current.rep <- inter.ident.unfold.dat[each.row,'Rep']
 
-		fc.lig <- marker.dat[marker.dat$cluster==current.from,][current.lig, 'avg_log2FC']
-		p.lig <- marker.dat[marker.dat$cluster==current.from,][current.lig, 'p_val_adj']
-		
-		fc.rep <- marker.dat[marker.dat$cluster==current.to,][current.rep, 'avg_log2FC']
-		p.rep <- marker.dat[marker.dat$cluster==current.to,][current.rep,'p_val_adj']
+		fc.lig <- subset(markerL.dat, cluster==current.from & gene==current.lig)[,'avg_log2FC']
+		p.lig <- subset(markerL.dat, cluster==current.from & gene==current.lig)[,'p_val_adj']
+
+		fc.rep <- subset(markerR.dat, cluster==current.to & gene==current.rep)[,'avg_log2FC']
+		p.rep <- subset(markerR.dat, cluster==current.to & gene==current.rep)[,'p_val_adj']
 
 		### if the ligand have a FC > logFC.thre and a p.adj < p.thre
 		### and if the receptor have a FC > logFC.thre and a p.adj < p.thre
-		if ((!is.na(fc.lig)) & (fc.lig > logFC.thre) & (!is.na(fc.rep)) & (fc.rep > logFC.thre) & (p.lig < p.thre) & (p.rep < p.thre)){
-			fc.lr <- c(fc.lr, fc.lig*fc.rep)
-			p.lr <- c(p.lr, 1-(1-p.lig)*(1-p.rep))
+		if ((length(fc.lig)>0) & (length(fc.rep)>0)){
+			if ((fc.lig > logFC.thre) &  (fc.rep > logFC.thre) & (p.lig < p.thre) & (p.rep < p.thre)){
+				fc.lr <- c(fc.lr, fc.lig*fc.rep)
+				p.lr <- c(p.lr, 1-(1-p.lig)*(1-p.rep))
+			}
 		}else{
 			fc.lr <- c(fc.lr, NA)
 			p.lr <- c(p.lr, NA)
@@ -255,8 +320,12 @@ dotPlot <- function(marker.dat, Interact, ligand.ident=NULL, receptor.ident=NULL
 
 	inter.ident.unfold.dat$Log2FC_LR <- fc.lr
 	inter.ident.unfold.dat$P_LR <- p.lr
-	inter.ident.unfold.dat$Log_P_adj <- -log10(p.adjust(p.lr, method='BH'))
-	inter.ident.unfold.dat[which(inter.ident.unfold.dat$Log_P_adj > 30), 'Log_P_adj'] <- 30 
+	inter.ident.unfold.dat$Log10_P_adj <- -log10(p.adjust(p.lr, method='BH'))
+
+	if (return.data){
+		return(inter.ident.unfold.dat[,c('Cell.From', 'Cell.To', 'LR.Info', 'Log2FC_LR', 'P_LR', 'Log10_P_adj')])
+	}
+	inter.ident.unfold.dat[which(inter.ident.unfold.dat$Log10_P_adj > 30), 'Log10_P_adj'] <- 30 
 
 
 	if (length(ligand.ident)==1){
@@ -265,10 +334,29 @@ dotPlot <- function(marker.dat, Interact, ligand.ident=NULL, receptor.ident=NULL
 		x.title <- paste0('Ligand clusters to cluster ',receptor.ident)
 	}
 
-	plot <- ggplot(inter.ident.unfold.dat,aes(as.character(Xaxis),LR.Info)) + 
-		geom_point(aes(size=Log2FC_LR,col=Log_P_adj),shape=shape) +
+	### you may want to adjust the order of the clusters in the x axis
+	inter.ident.unfold.dat$Xaxis <- as.character(inter.ident.unfold.dat$Xaxis)
+	if (!is.null(ident.levels)){
+		x.levels <- ident.levels[ident.levels %in% inter.ident.unfold.dat$Xaxis]
+		if (all(inter.ident.unfold.dat$Xaxis %in% x.levels)){
+			inter.ident.unfold.dat$Xaxis <- factor(inter.ident.unfold.dat$Xaxis, levels=x.levels)
+		}else{
+			ident.missed <- unique(inter.ident.unfold.dat$Xaxis[!(inter.ident.unfold.dat$Xaxis %in% x.levels)])
+			ident.missed <- pasteIdent(ident.missed)
+			stop(paste0('the ident class ',ident.missed,' may be missed in the input ident.levels'))
+		}
+	}
+
+	plot <- ggplot(inter.ident.unfold.dat,aes(Xaxis,LR.Info)) + 
+		geom_point(aes(size=Log2FC_LR,col=Log10_P_adj),shape=shape) +
 		scale_colour_gradient(low="green",high="red") + 
-		labs(color='-log10(p.adjust)',size='Log2FC',x=x.title,y="")
+		# scale_color_gradientn(values = seq(0,1,0.2),colours=c(c("#440154" ,"#21908C", "#FDE725"))) + 
+		labs(color='-log10(p.adjust)',size='Log2FC',x=x.title,y="") + 
+		theme(axis.text=element_text(colour='black',size=12),
+		axis.title=element_text(colour='black',size=12),
+		panel.background=element_rect(fill="white",color="black"),
+		panel.grid=element_line(size=0.5,colour='gray')
+		)
 	return(plot)
 }
 
@@ -280,7 +368,9 @@ dotPlot <- function(marker.dat, Interact, ligand.ident=NULL, receptor.ident=NULL
 #' @export
 findLRpath <- function(Interact, category='all'){
 	options(stringsAsFactors=F)
-	data('cellTalkData', package=('celltalk'))
+	if (category!='all' & category!='go' & category!='kegg' & category!='wikipathway' & category!='reactome'){
+		stop("wrong category selected. Select one of 'go', 'kegg', 'wikipathway', and 'reactome', or 'all' for all pathways")
+	}
 	if (category=='all'){
 		path.list <- cellTalkData$DataPathway[[Interact$species]]
 	}else if(category=='wikipathway'){
@@ -302,13 +392,13 @@ findLRpath <- function(Interact, category='all'){
 #' To find different enriched pathway between two group cells
 #' @param Interact Interact list returned by findLRpath
 #' @param gsva.mat Matrix containing the pathway enrichment sorces, with rows representing pathways and columns representing cells. Pathway scores are usually computed from gsva, or other methods aiming to measure the pathway enrichment in cells
-#' @param ident.lable Vector indicating the identity lables of cells, and the order of lables are required to match order of cells (columns) in the gsva.mat
+#' @param ident.label Vector indicating the identity labels of cells, and the order of labels are required to match order of cells (columns) in the gsva.mat
 #' @param select.ident.1 Identity class to define cells for group 1
 #' @param select.ident.2 Identity class to define cells for group 2 for comparison; if 'NULL', use all other cells for comparison
 #' @param method Method used for differential enrichment analysis, either 't.test' of 'wilcox.test'
 #' @return Dataframe including the statistic result comparing the pathway enrichment sorces between group 1 and group 2, the significant recetor and ligand of group 1 in the pathways, and the corresponding up stream identity class which interact with group 1 by releasing specific ligand
 #' @export
-diffLRpath <- function(Interact,gsva.mat,ident.lable,select.ident.1,select.ident.2=NULL, method='t.test'){
+diffLRpath <- function(Interact,gsva.mat,ident.label,select.ident.1,select.ident.2=NULL, method='t.test'){
 	options(stringsAsFactors=F)
 
 	path.lr.list <- Interact$pathwayLR
@@ -339,7 +429,7 @@ diffLRpath <- function(Interact,gsva.mat,ident.lable,select.ident.1,select.ident
 
 	### t.test or wilcox.text for the pathways for the selected cluster
 	gsva.ident.mat <- gsva.mat[names(overlap.rep.list),]
-	group <- as.character(ident.lable)
+	group <- as.character(ident.label)
 	test.res.dat <- pathTest(gsva.ident.mat, group, select.ident.1, select.ident.2, method)
 
 	
@@ -399,7 +489,7 @@ findReceptor <- function(Interact, select.ident=NULL, select.ligand=NULL){
 	}
 
 	if (nrow(ident.down.dat)==0){
-		stop("no downstream ident found for the selected ident and ligand")
+		warning("no downstream ident found for the selected ident and ligand")
 	}
 	return(ident.down.dat)
 }
@@ -413,7 +503,10 @@ findReceptor <- function(Interact, select.ident=NULL, select.ligand=NULL){
 #' @return Dataframe including the statistic result
 #' @export
 pathTest <- function(gsva.ident.mat, group, select.ident.1, select.ident.2=NULL, method='t.test'){
-	if (method=='t.test'){
+	if (method!='t.test' & method!='wilcox.test'){
+		stop("select t.test or wilcox.test to conduct differential analysis")
+	}
+	if(method=='t.test'){
 		if (is.null(select.ident.2)){
 		t.result <- apply(gsva.ident.mat,1,function(geneExpr){
 			t.test(x=geneExpr[group %in% select.ident.1],y=geneExpr[!(group %in% select.ident.1)])}
@@ -429,16 +522,16 @@ pathTest <- function(gsva.ident.mat, group, select.ident.1, select.ident.2=NULL,
 		}))
 		test.res.dat <- as.data.frame(t(test.res.dat))
 		colnames(test.res.dat) <- c('mean.diff','mean.1','mean.2','t','df','p.val')
-	}else if(method=='wilcox.test'){
+	}else{
 		if (is.null(select.ident.2)){
 			wil.result <- apply(gsva.ident.mat,1,function(geneExpr){
-			wilcox.test(x=geneExpr[group %in% select.ident.1],y=geneExpr[!(group %in% select.ident.1)])})
+				wilcox.test(x=geneExpr[group %in% select.ident.1],y=geneExpr[!(group %in% select.ident.1)])})
 
 			wil.median <- apply(gsva.ident.mat, 1, function(geneExpr){
 				median.1 <- median(geneExpr[group %in% select.ident.1])
 				median.2 <- median(geneExpr[!(group %in% select.ident.1)])
 				median.diff <- median.1 - median.2
-				c(median.diff, median.1, median.2)
+				return(c(median.diff, median.1, median.2))
 			})
 			wil.median <- as.data.frame(t(wil.median))
 			colnames(wil.median) <- c('median.diff','median.1','median.2')
@@ -450,7 +543,7 @@ pathTest <- function(gsva.ident.mat, group, select.ident.1, select.ident.2=NULL,
 				median.1 <- median(geneExpr[group %in% select.ident.1])
 				median.2 <- median(geneExpr[group %in% select.ident.2])
 				median.diff <- median.1 - median.2
-				c(median.diff, median.1, median.2)
+				return(c(median.diff, median.1, median.2))
 			})
 			wil.median <- as.data.frame(t(wil.median))
 			colnames(wil.median) <- c('median.diff','median.1','median.2')
@@ -463,11 +556,19 @@ pathTest <- function(gsva.ident.mat, group, select.ident.1, select.ident.2=NULL,
 		colnames(test.res.dat) <- c('W','p.val')
 
 		test.res.dat <- cbind(wil.median,test.res.dat)
-	}else{
-		stop("select t.test or wilcox.test to conduct differential analysis")
 	}
 	
 	test.res.dat$p.val.adj <- p.adjust(test.res.dat$p.val, method='BH')
 	test.res.dat$description <- rownames(test.res.dat)
 	return(test.res.dat)
+}
+
+#' This is a plug-in function, aimming to paste a vector of idents into a ',' separated string
+#' @param ident.missed Vector of idents
+#' @return String with idents pasted
+pasteIdent <- function(ident.missed){
+	if (length(ident.missed) > 1){ 
+		ident.missed <- paste0(paste(ident.missed[1:(length(ident.missed)-1)], collapse=', '), ' and ', ident.missed[length(ident.missed)])
+	}
+	return(ident.missed)
 }
