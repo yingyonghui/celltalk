@@ -52,8 +52,8 @@ sample.marker <- findLRmarker(expr.mat, label, species, method)
 # find significant LR pairs
 marker.dat = sample.marker
 species = 'mmusculus'
-logFC.thre = 0.25
-p.thre = 0.01
+logFC.thre = 0
+p.thre = 0.05
 Interact <- findLRpairs(marker.dat=sample.marker, 
     species=species, 
     logFC.thre=logFC.thre, 
@@ -113,13 +113,24 @@ Pathway differential enrichment analysis：
 # and the receptor and ligand in the pathway
 ident.label = sample.label
 select.ident.1 = 6
-test.res.dat <- diffLRpath(Interact=Interact, 
+method = 't.test'
+test.res.dat <- diffPath(Interact=Interact, 
     gsva.mat=gsva.mat, 
     ident.label=ident.label, 
     select.ident.1=6,
-    method='t.test')
+    method=method)
 
 head(test.res.dat)
+
+# perform diffPath for all clusters
+all.test.dat <- diffAllPath(Interact=Interact, 
+gsva.mat=gsva.mat, 
+ident.label=ident.label, 
+method=method)
+# get all significant pathways
+all.test.dat <- subset(all.test.dat, p.val.adj < 0.05)
+
+head(all.test.dat)
 ```
 Columns ***mean.diff***, ***mean.1***, ***mean.2***, ***t***, ***df***, ***p.val***, ***p.val.adj*** show the statistic result; *description* shows the name of pathway; 
 

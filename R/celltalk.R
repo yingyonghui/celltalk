@@ -106,7 +106,7 @@ findLRmarker <- function(expr.mat, label, species, method='wilcox.test', p.adjus
 
 	if(method=='wilcox.test'){
 		test.all.res <- lapply(ident.level, function(each.level) {
-			print(paste0('Identifying marker genes for cluster ',each.level,' ...'))
+			message(paste0('Identifying marker genes for cluster ',each.level,' ...'))
 			cell.ident <- which(label==each.level)
 			cell.other <- which(label!=each.level)
 
@@ -127,7 +127,7 @@ findLRmarker <- function(expr.mat, label, species, method='wilcox.test', p.adjus
 		test.all.res <- do.call(rbind, test.all.res)
 	}else{
 		test.all.res <- lapply(ident.level, function(each.level) {
-			print(paste0('Identify marker genes for ',each.level,' ...'))
+			message(paste0('Identify marker genes for ',each.level,' ...'))
 			cell.ident <- which(label==each.level)
 			cell.other <- which(label!=each.level)
 
@@ -398,19 +398,30 @@ findLRpath <- function(Interact, category='all'){
 #' @param method Method used for differential enrichment analysis, either 't.test' of 'wilcox.test'
 #' @return Dataframe including the statistic result comparing the pathway enrichment sorces between group 1 and group 2, the significant recetor and ligand of group 1 in the pathways, and the corresponding up stream identity class which interact with group 1 by releasing specific ligand
 #' @export
-diffLRpath <- function(Interact,gsva.mat,ident.label,select.ident.1,select.ident.2=NULL, method='t.test'){
+diffPath <- function(Interact, gsva.mat, ident.label, select.ident.1, select.ident.2=NULL, method='t.test'){
 	options(stringsAsFactors=F)
+
+	if (method!='t.test' & method!='wilcox.test'){
+		stop("select t.test or wilcox.test to conduct differential analysis")
+	}else if(method=='t.test'){
+		test.res.dat <- data.frame(matrix(NA,0,12))
+		colnames(test.res.dat) <- c('mean.diff','mean.1','mean.2','t','df','p.val','p.val.adj','description','cell.up','ligand.up','receptor.in.path','ligand.in.path')
+	}else{
+		test.res.dat <- data.frame(matrix(NA,0,11))
+		colnames(test.res.dat) <- c('median.diff','median.1','median.2','W','p.val','p.val.adj','description','cell.up','ligand.up','receptor.in.path','ligand.in.path')
+	}
 
 	path.lr.list <- Interact$pathwayLR
 	if (is.null(path.lr.list)){
-		stop("no pathway detected, run findLRpath befor diffLRpath")
+		stop("no pathway detected, run findLRpath befor diffPath")
 	}
 	# marker.lig.dat <- Interact$markerL
 	# marker.lig.dat <- marker.lig.dat[marker.lig.dat$cluster==select.ident,]
 	marker.ident1.rep.dat <- subset(Interact$InteractGeneUnfold, Cell.To %in% select.ident.1)
 
 	if (nrow(marker.ident1.rep.dat)==0){
-		stop("there is no significant receptor in the selected ident")
+		warning(paste0("there is no significant receptor for cluster ", select.ident.1))
+		return(test.res.dat)
 	}
 
 	### find those pathways in which genesets hava overlap with the marker receptors of the selected cluster
@@ -423,6 +434,10 @@ diffLRpath <- function(Interact,gsva.mat,ident.label,select.ident.1,select.ident
 				return(FALSE)
 		}
 	})
+	if (all(which.overlap.list=='FALSE')){
+		warning(paste0("there is no pathway showing overlap with the receptors in cluster ",select.ident.1))
+		return(test.res.dat)
+	}
 	overlap.rep.list <- which.overlap.list[which(which.overlap.list!='FALSE')]
 	### since we set min.sz in the gsva function, there are some pathways not calculated in the gsva process, we shall remove those pathways
 	overlap.rep.list <- overlap.rep.list[names(overlap.rep.list) %in% rownames(gsva.mat)]
@@ -433,22 +448,26 @@ diffLRpath <- function(Interact,gsva.mat,ident.label,select.ident.1,select.ident
 	test.res.dat <- pathTest(gsva.ident.mat, group, select.ident.1, select.ident.2, method)
 
 	
-	### to find the upstream ident and ligand the ident.1 recieved 
+	### to find the upstream ident and ligand the ident.1 recieved
 	test.res.dat$cell.up <- NA
 	test.res.dat$ligand.up <- NA
 	test.res.dat$receptor.in.path <- unlist(overlap.rep.list)
 	for (each.row in 1:nrow(test.res.dat)){
 		each.rep <- test.res.dat[each.row,'receptor.in.path']
 		rep.vec <- strsplit(each.rep, split=',')[[1]]
+		
+		up.cell.inte <- c()
+		up.lig.inte <- c()
+		cur.rep.inte <- c()
 		for (each.rep in rep.vec){
 			each.unfold.rep <- subset(marker.ident1.rep.dat, Receptor==each.rep)
-			test.res.dat[each.row,'cell.up'] <- paste(each.unfold.rep$Cell.From, collapse=';')
-			if (length(unique(each.unfold.rep$Ligand)) > 1){
-				test.res.dat[each.row,'ligand.up'] <- paste(each.unfold.rep$Ligand, collapse=';')
-			}else{
-				test.res.dat[each.row,'ligand.up'] <- each.unfold.rep$Ligand[1]
-			}
+			up.cell.inte <- c(up.cell.inte,paste(each.unfold.rep$Cell.From, collapse=';'))
+			up.lig.inte <- c(up.lig.inte,paste(each.unfold.rep$Ligand, collapse=';'))		
+			cur.rep.inte <- c(cur.rep.inte,paste(each.unfold.rep$Receptor, collapse=';'))		
 		}
+		test.res.dat[each.row,'cell.up'] <- paste(up.cell.inte, collapse=';')
+		test.res.dat[each.row,'ligand.up'] <- paste(up.lig.inte, collapse=';')
+		test.res.dat[each.row,'receptor.in.path'] <- paste(cur.rep.inte, collapse=';')
 	}
 
 	### to find the ligand in the same pathway
@@ -466,6 +485,33 @@ diffLRpath <- function(Interact,gsva.mat,ident.label,select.ident.1,select.ident
 	test.res.dat$ligand.in.path <- unlist(ident.lig.in.path)
 
 	return(test.res.dat)
+}
+
+
+#' To find different enriched pathways in each identity class 
+#' @param Interact Interact list returned by findLRpath
+#' @param gsva.mat Matrix containing the pathway enrichment sorces, with rows representing pathways and columns representing cells. Pathway scores are usually computed from gsva, or other methods aiming to measure the pathway enrichment in cells
+#' @param ident.label Vector indicating the identity labels of cells, and the order of labels are required to match order of cells (columns) in the gsva.mat
+#' @param method Method used for differential enrichment analysis, either 't.test' of 'wilcox.test'
+#' @return Dataframe including the statistic result comparing the pathway enrichment sorces between cells in each cluster and all other clusters, the significant recetor and ligand in the pathways, and the corresponding up stream identity class and ligand
+#' @export
+diffAllPath <- function(Interact, gsva.mat, ident.label, method='t.test'){
+	if (method=='t.test'){
+		all.test.dat <- data.frame(matrix(NA,0,12))
+	}else{
+		all.test.dat <- data.frame(matrix(NA,0,11))
+	}
+
+	all.rep.ident <- unique(Interact$InteractGene$Cell.To)
+	for (each.ident in all.rep.ident){
+		message(paste0('Identifying pathways for cluster ',each.ident,'...'))
+		test.res.dat <- diffPath(Interact, gsva.mat, ident.label, select.ident.1=each.ident, select.ident.2=NULL, method=method)
+		if (nrow(test.res.dat)==0){ next }
+		test.res.dat$cluster <- each.ident
+		all.test.dat <- rbind(all.test.dat, test.res.dat)
+	}
+
+	return(all.test.dat)
 }
 
 #' To find the downstream identity class of specific ligand released by specific upstream identity class
@@ -503,18 +549,13 @@ findReceptor <- function(Interact, select.ident=NULL, select.ligand=NULL){
 #' @return Dataframe including the statistic result
 #' @export
 pathTest <- function(gsva.ident.mat, group, select.ident.1, select.ident.2=NULL, method='t.test'){
-	if (method!='t.test' & method!='wilcox.test'){
-		stop("select t.test or wilcox.test to conduct differential analysis")
-	}
 	if(method=='t.test'){
 		if (is.null(select.ident.2)){
-		t.result <- apply(gsva.ident.mat,1,function(geneExpr){
-			t.test(x=geneExpr[group %in% select.ident.1],y=geneExpr[!(group %in% select.ident.1)])}
-		)
+			t.result <- apply(gsva.ident.mat,1,function(geneExpr){
+				t.test(x=geneExpr[group %in% select.ident.1],y=geneExpr[!(group %in% select.ident.1)])})
 		}else{
 			t.result <- apply(gsva.ident.mat,1,function(geneExpr){
-				t.test(x=geneExpr[group %in% select.ident.1],y=geneExpr[group %in% select.ident.2])}
-			)
+				t.test(x=geneExpr[group %in% select.ident.1],y=geneExpr[group %in% select.ident.2])})
 		}
 		# t = testRes$statistic, df = testRes$parameter, mean.1 = testRes$estimate[1], mean.2 = testRes$estimate[2], pVal = testRes$p.value
 		test.res.dat <- as.data.frame(lapply(t.result,function(testRes){
@@ -559,7 +600,7 @@ pathTest <- function(gsva.ident.mat, group, select.ident.1, select.ident.2=NULL,
 	}
 	
 	test.res.dat$p.val.adj <- p.adjust(test.res.dat$p.val, method='BH')
-	test.res.dat$description <- rownames(test.res.dat)
+	test.res.dat$description <- rownames(gsva.ident.mat)
 	return(test.res.dat)
 }
 
@@ -571,4 +612,164 @@ pasteIdent <- function(ident.missed){
 		ident.missed <- paste0(paste(ident.missed[1:(length(ident.missed)-1)], collapse=', '), ' and ', ident.missed[length(ident.missed)])
 	}
 	return(ident.missed)
+}
+
+#' This is a plug-in function, aimming to find the highly variable pathways in the gsva score matrix
+#' @param gsva.mat Matrix containing the pathway enrichment sorces, with rows representing pathways and columns representing cells. Pathway scores are usually computed from gsva, or other methods aiming to measure the pathway enrichment in cells
+#' @param select.path selected pathways
+#' @param n n
+#' @return Vector of top n variable pathways
+#' @export
+variPath <- function(gsva.mat, select.path=NULL, n=10){
+	if (!is.null(select.path)){
+		gsva.mat <- gsva.mat[rownames(gsva.mat) %in% select.path,]
+	}
+	gsva.cv.vec <- apply(gsva.mat,1,sd)
+	vari.path <- names(gsva.cv.vec[order(-gsva.cv.vec)][1:n])
+
+	return(vari.path)
+}
+
+#' To present the interact and variable pathways in a line plot
+#' @param Interact Interact list returned by findLRpairs
+#' @param gsva.mat pathway score
+#' @param all.test.dat all.test.dat
+#' @param order Order of identity classes in the plot
+#' @param n Top n variable pathways
+#' @param hide.isol Whether to hide the isolated identity (those identity class in which cells show no interact with cells in other ientity class) or not; defult is TRUE
+#' @param line.width line.width
+#' @return String with idents pasted
+#' @export
+pathPlot <- function(Interact, gsva.mat, all.test.dat, order=NULL, n=10, hide.isol=TRUE, ident.size=1, label.size=1, path.size=1, ident.line.width=1, ident.line.alpha=0.8, path.line.alpha=0.8, path.line.width=1, label.dist=0.2){
+	
+	#order=paste0('C',1:20); n=10; hide.isol=TRUE; line.width=1; label.dist=0.2
+
+	vari.path.name <- variPath(gsva.mat, all.test.dat$description, n=n)
+	vari.path.name <- rev(vari.path.name)
+
+	vari.path.dat <- subset(all.test.dat, description %in% vari.path.name)
+	#vari.path.dat$cluster <- paste0('C',vari.path.dat$cluster)
+	Interact.num.dat <- Interact$InteractNumer
+	Interact.num.dezero.dat <- subset(Interact.num.dat, LR.Number!=0)
+	#Interact.num.dat$Cell.From <- paste0('C',Interact.num.dat$Cell.From)
+	#Interact.num.dat$Cell.To <- paste0('C',Interact.num.dat$Cell.To)
+
+	if (hide.isol){ Interact.num.dat <- Interact.num.dezero.dat }
+	# Interact.num.dat <- subset(Interact.num.dat, Cell.From %in% c(1:6) & Cell.To %in% c(1:6) )
+
+	all.ident <- unique(c(Interact.num.dat$Cell.From,Interact.num.dat$Cell.To))
+	if (!is.null(order)){
+		order.overlap <- order[order %in% all.ident]
+		all.ident <- factor(all.ident, levels=order.overlap)
+	}
+	all.ident <- all.ident[order(all.ident, decreasing=TRUE)]
+
+	n.ident <- length(all.ident)
+	col.ident <- rev(scales::hue_pal(c=100)(n.ident))
+
+	lig.ident <- unique(Interact.num.dat$Cell.From)
+	lig.coor <- match(lig.ident, all.ident)
+	lig.col <- col.ident[lig.coor]
+
+	rep.ident <- unique(Interact.num.dat$Cell.To)
+	rep.coor <- match(rep.ident, all.ident)
+	rep.col <- col.ident[rep.coor]
+
+	line.y.coor <- match(Interact.num.dezero.dat$Cell.From, all.ident)
+	line.yend.coor <- match(Interact.num.dezero.dat$Cell.To, all.ident)
+	line.col <- col.ident[line.y.coor]
+	line.size <- 0.1 * ident.line.width * Interact.num.dezero.dat$LR.Number
+
+	pathway.coor <- seq(from=1, to=n.ident, length.out=length(vari.path.name))
+	path.line.y.coor <- match(vari.path.dat$cluster, all.ident)
+	path.line.yend.coor <- pathway.coor[match(vari.path.dat$description, vari.path.name)]
+	path.line.col <- col.ident[path.line.y.coor]
+
+	pathplot.theme <- theme(axis.title=element_blank(), axis.text=element_blank(),axis.ticks=element_blank(), axis.line=element_blank(), panel.background=element_rect(fill="white"))
+
+	ggplot() + 
+	annotate('text', hjust=0, x=1-label.dist, y=1:n.ident,label=all.ident, size=5*label.size) +
+	geom_segment(aes(x=1, xend=2, y=line.y.coor,yend=line.yend.coor, size=line.size), color=line.col, alpha=ident.line.alpha, show.legend=F) +
+	geom_point(aes(x=1,y=lig.coor),size=8*ident.size,color=lig.col) + 
+	geom_point(aes(x=2,y=rep.coor),size=8*ident.size,color=rep.col) + 
+	annotate('label', hjust=0, x=3, y=pathway.coor,label=vari.path.name, size=5*path.size) +
+	geom_segment(aes(x=2, xend=3, y=path.line.y.coor,yend=path.line.yend.coor, size=0.1*path.line.width), color=path.line.col, alpha=path.line.alpha, show.legend=F) + 
+	#scale_x_continuous(limits=c(0.8,5)) + 
+	pathplot.theme
+
+}
+
+#' To present the interact and variable pathways in a line plot, for a specific ident
+#' @param Interact Interact list returned by findLRpairs
+#' @param gsva.mat pathway score
+#' @param ident.path.dat ident.path.dat for the selected ident
+#' @param p.thre Order of identity classes in the plot
+#' @param n Top n variable pathways
+#' @param order Whether to hide the isolated identity (those identity class in which cells show no interact with cells in other ientity class) or not; defult is TRUE
+#' @param ident.size line.width
+#' @return String with idents pasted
+#' @export
+receptorPathPlot <- function(Interact, gsva.mat, ident.path.dat, p.thre = 0.05, n=10, order=1:20, ident.size=1, label.dist=0.2, label.size=1, line.size=1, ident.line.alpha=1, ident.line.width=1, path.line.width=1, path.line.alpha=1, path.size=1){
+	
+	ident.path.dat <- subset(ident.path.dat, p.val.adj < p.thre)
+	ident.path.dat <- ident.path.dat[order(ident.path.dat$p.val.adj, decreasing=TRUE),]
+	ident.path.dat <- ident.path.dat[1:n, ]
+
+	### preprocess and extract useful information
+	up.ident <- as.vector(unlist(sapply(ident.path.dat$cell.up, function(x){ strsplit(x, split=';') })))
+	cur.rep <- as.vector(unlist(sapply(ident.path.dat$receptor.in.path, function(x){ strsplit(x, split=';') })))
+
+	n.elem.each.row <- as.vector(unlist(lapply(sapply(ident.path.dat$receptor.in.path, function(x){ strsplit(x, split=';') }),length)))
+	path.all <- rep(ident.path.dat$description, times=n.elem.each.row)
+	plot.dat <- data.frame(up.ident=up.ident, cur.rep=cur.rep, path=path.all)
+
+	### the idents which release ligands
+	up.uniq.ident <- unique(up.ident)
+	if (!is.null(order)){
+		order.overlap <- order[order %in% up.uniq.ident]
+		up.uniq.ident <- factor(up.uniq.ident, levels=order.overlap)
+	}
+	up.uniq.ident <- up.uniq.ident[order(up.uniq.ident, decreasing=TRUE)]
+
+	n.ident <- length(up.uniq.ident)
+	col.ident <- rev(scales::hue_pal(c=100)(n.ident))
+	lig.coor <- 1:n.ident
+
+	### the receptor and their coordinate
+	cur.uniq.rep <- factor(unique(cur.rep))
+	cur.uniq.rep <- cur.uniq.rep[order(cur.uniq.rep, decreasing=TRUE)]
+	n.rep <- length(cur.uniq.rep)
+	rep.coor <- seq(from=1, to=n.ident, length.out=n.rep)
+	rep.col <- rev(scales::hue_pal(c=100)(n.rep))
+	
+	### lines between ligand idents and receptors
+	line.y.coor <- match(up.ident, up.uniq.ident)
+	line.yend.coor <- rep.coor[match(cur.rep, cur.uniq.rep)]
+	line.col <- col.ident[match(up.ident, up.uniq.ident)]
+
+	### pathways coordinate and color
+	path.name <- ident.path.dat$description
+	path.name <- factor(path.name, levels=path.name)
+	path.name <- path.name[order(path.name, decreasing=TRUE)]
+	width <- max(sapply(as.vector(path.name),nchar))/10
+	pathway.coor <- seq(from=1, to=n.ident, length.out=length(path.name))
+	
+	### lines between receptors and pathways
+	path.line.y.coor <- rep.coor[match(cur.rep, cur.uniq.rep)]
+	path.line.yend.coor <- pathway.coor[match(path.all, path.name)]
+	path.line.col <- 'black'
+
+	pathplot.theme <- theme(axis.title=element_blank(), axis.text=element_blank(),axis.ticks=element_blank(), axis.line=element_blank(), panel.background=element_rect(fill="white"))
+
+	ggplot() + 
+	scale_x_continuous(limits=c(0.5,width)) + 
+	geom_point(aes(x=1,y=lig.coor),size=8*ident.size,color=col.ident) + 
+	annotate('text', hjust=0, x=1-label.dist, y=1:n.ident,label=up.uniq.ident, size=5*label.size) +
+	geom_segment(aes(x=1, xend=2, y=line.y.coor,yend=line.yend.coor), size=ident.line.width, color=line.col, alpha=ident.line.alpha, show.legend=F) +
+	annotate('label', hjust=0, x=3, y=pathway.coor,label=path.name, size=5*path.size) +
+	geom_segment(aes(x=2, xend=3, y=path.line.y.coor,yend=path.line.yend.coor),size=path.line.width, color=path.line.col, alpha=path.line.alpha, show.legend=F) + 
+	geom_point(aes(x=2,y=rep.coor),size=8*ident.size,color=rep.col) + 
+	annotate('text', hjust=0.5, x=2, y=rep.coor-0.4,label=cur.uniq.rep, size=5*label.size) +
+	pathplot.theme
+
 }
