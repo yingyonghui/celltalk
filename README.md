@@ -114,23 +114,23 @@ Pathway differential enrichment analysis：
 ident.label = sample.label
 select.ident.1 = 6
 method = 't.test'
-test.res.dat <- diffPath(Interact=Interact, 
+ident.path.dat <- diffPath(Interact=Interact, 
     gsva.mat=gsva.mat, 
     ident.label=ident.label, 
     select.ident.1=6,
     method=method)
 
-head(test.res.dat)
+head(ident.path.dat)
 
 # perform diffPath for all clusters
-all.test.dat <- diffAllPath(Interact=Interact, 
+all.path.dat <- diffAllPath(Interact=Interact, 
 gsva.mat=gsva.mat, 
 ident.label=ident.label, 
 method=method)
 # get all significant pathways
-all.test.dat <- subset(all.test.dat, p.val.adj < 0.05)
+all.path.dat <- subset(all.path.dat, p.val.adj < 0.05)
 
-head(all.test.dat)
+head(all.path.dat)
 ```
 Columns ***mean.diff***, ***mean.1***, ***mean.2***, ***t***, ***df***, ***p.val***, ***p.val.adj*** show the statistic result; *description* shows the name of pathway; 
 
@@ -151,3 +151,22 @@ ident.down.dat <- findReceptor(Interact=Interact,
 head(ident.down.dat)
 ```
 #### 通路介导的细胞交互
+```
+### first we identify differentially enriched pathways associated with receptors in the selected ident
+ident.label = sample.label
+select.ident.1 = 6
+method = 't.test'
+ident.path.dat <- diffPath(Interact=Interact, 
+    gsva.mat=gsva.mat, 
+    ident.label=ident.label, 
+    select.ident.1=6,
+    method=method)
+    
+# visualization of the identified pathways
+save.image('before.lineplot.RData')
+load('before.lineplot.RData')
+
+receptorPathPlot(Interact, 
+    select.ident=select.ident.1, 
+    ident.path.dat=ident.path.dat)
+```

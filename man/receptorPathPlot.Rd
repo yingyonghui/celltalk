@@ -6,36 +6,38 @@
 \usage{
 receptorPathPlot(
   Interact,
-  gsva.mat,
+  select.ident,
   ident.path.dat,
+  top.n.receptor = 5,
+  top.n.path = 10,
+  order = NULL,
   p.thre = 0.05,
-  n = 10,
-  order = 1:20,
   ident.size = 1,
-  label.dist = 0.2,
+  receptor.size = 1,
+  label.dist = 0.4,
   label.size = 1,
   line.size = 1,
   ident.line.alpha = 1,
   ident.line.width = 1,
   path.line.width = 1,
-  path.line.alpha = 1,
+  path.line.alpha = 0.8,
   path.size = 1
 )
 }
 \arguments{
 \item{Interact}{Interact list returned by findLRpairs}
 
-\item{gsva.mat}{pathway score}
+\item{select.ident}{select.ident}
 
 \item{ident.path.dat}{ident.path.dat for the selected ident}
 
-\item{p.thre}{Order of identity classes in the plot}
+\item{top.n.receptor}{top.n.receptor}
 
-\item{n}{Top n variable pathways}
+\item{order}{order}
 
-\item{order}{Whether to hide the isolated identity (those identity class in which cells show no interact with cells in other ientity class) or not; defult is TRUE}
+\item{p.thre}{p.thre}
 
-\item{ident.size}{line.width}
+\item{ident.size}{ident.size}
 }
 \value{
 String with idents pasted

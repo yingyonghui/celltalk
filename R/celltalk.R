@@ -540,6 +540,32 @@ findReceptor <- function(Interact, select.ident=NULL, select.ligand=NULL){
 	return(ident.down.dat)
 }
 
+#' To find the upstream identity classes and ligands of specific receptor expressed by specific downstream identity class
+#' @param Interact Interact list returned by findLRpairs
+#' @param select.ident Downstream identity class; if 'NULL', use all identity classes
+#' @param select.receptor Receptor expressed by downstream identity class; if 'NULL', use all receptors that are markers for the selected downstream identity class
+#' @return Dataframe including the interaction information
+#' @export
+findReceptor <- function(Interact, select.ident=NULL, select.receptor=NULL){
+	options(stringsAsFactors=F)
+
+	if (is.null(select.ident) & is.null(select.receptor)){
+		stop("either a select.ident or a select.receptor need to be asigned")
+	}
+	if (is.null(select.receptor)){
+		ident.up.dat <- subset(Interact$InteractGeneUnfold, Cell.To==select.ident)
+	}else if(is.null(select.ident)){
+		ident.up.dat <- subset(Interact$InteractGeneUnfold, Receptor==select.receptor)
+	}else{
+		ident.up.dat <- subset(Interact$InteractGeneUnfold, Cell.To==select.ident & Receptor==select.receptor)
+	}
+
+	if (nrow(ident.up.dat)==0){
+		warning("no upstream ident found for the selected ident and receptor")
+	}
+	return(ident.up.dat)
+}
+
 #' Differential enrichment analysis by t.test or wilcox.txt
 #' @param gsva.ident.mat Matrix of pathway scores, pathway * cell
 #' @param group Vector of group labels of cells
@@ -701,19 +727,26 @@ pathPlot <- function(Interact, gsva.mat, all.test.dat, order=NULL, n=10, hide.is
 
 #' To present the interact and variable pathways in a line plot, for a specific ident
 #' @param Interact Interact list returned by findLRpairs
-#' @param gsva.mat pathway score
+#' @param select.ident select.ident
 #' @param ident.path.dat ident.path.dat for the selected ident
-#' @param p.thre Order of identity classes in the plot
-#' @param n Top n variable pathways
-#' @param order Whether to hide the isolated identity (those identity class in which cells show no interact with cells in other ientity class) or not; defult is TRUE
-#' @param ident.size line.width
+#' @param top.n.receptor top.n.receptor
+#' @param order order
+#' @param p.thre p.thre
+#' @param ident.size ident.size
 #' @return String with idents pasted
 #' @export
-receptorPathPlot <- function(Interact, gsva.mat, ident.path.dat, p.thre = 0.05, n=10, order=1:20, ident.size=1, label.dist=0.2, label.size=1, line.size=1, ident.line.alpha=1, ident.line.width=1, path.line.width=1, path.line.alpha=1, path.size=1){
-	
-	ident.path.dat <- subset(ident.path.dat, p.val.adj < p.thre)
+receptorPathPlot <- function(Interact, select.ident, ident.path.dat, top.n.receptor=5, top.n.path=10, order=NULL, p.thre = 0.05, ident.size=1, receptor.size=1, label.dist=0.4, label.size=1, line.size=1, ident.line.alpha=1, ident.line.width=1, path.line.width=1, path.line.alpha=0.8, path.size=1){
+	options(stringsAsFactors=F)
+
+	if ('t' %in% colnames(ident.path.dat)){
+		ident.path.dat <- subset(ident.path.dat, p.val.adj < p.thre & t > 0)
+	}else{
+		ident.path.dat <- subset(ident.path.dat, p.val.adj < p.thre & median.diff > 0)
+	}
 	ident.path.dat <- ident.path.dat[order(ident.path.dat$p.val.adj, decreasing=TRUE),]
-	ident.path.dat <- ident.path.dat[1:n, ]
+
+	all.sig.path <- ident.path.dat$description
+	#ident.path.dat <- ident.path.dat[1:n, ]
 
 	### preprocess and extract useful information
 	up.ident <- as.vector(unlist(sapply(ident.path.dat$cell.up, function(x){ strsplit(x, split=';') })))
@@ -721,8 +754,35 @@ receptorPathPlot <- function(Interact, gsva.mat, ident.path.dat, p.thre = 0.05, 
 
 	n.elem.each.row <- as.vector(unlist(lapply(sapply(ident.path.dat$receptor.in.path, function(x){ strsplit(x, split=';') }),length)))
 	path.all <- rep(ident.path.dat$description, times=n.elem.each.row)
-	plot.dat <- data.frame(up.ident=up.ident, cur.rep=cur.rep, path=path.all)
+	plot.dat <- data.frame(up.ident=up.ident, cur.rep=cur.rep, path.name=path.all)
+	
+	### select the highly expressed receptors
+	markerR.dat <- Interact$markerR
+	#markerR.dat <- markerR.dat[markerR.dat$cluster==select.ident, ]
+	markerR.dat <- subset(markerR.dat, subset=cluster==select.ident)
+	if (nrow(markerR.dat)==0){
+		stop('there is no marker receptor for the selected ident')
+	}
 
+	markerR.dat <- markerR.dat[order(markerR.dat$avg_log2FC, decreasing=TRUE), ]
+	top.n.receptor <- min(top.n.receptor, nrow(markerR.dat))
+	top.receptor.dat <- markerR.dat[1:top.n.receptor,]
+	plot.dat <- subset(plot.dat, cur.rep %in% top.receptor.dat$gene)
+	
+	### to select the top n pathways associated with the selected receptors
+	path.uniq.name <- unique(plot.dat$path.name)
+	### those pathways with a larger position index in the all.sig.path are more significant
+	### the following codes is to get the pathways with the top n largest position index
+	path.position <- match(path.uniq.name, all.sig.path)
+	path.position <- path.position[order(path.position, decreasing=TRUE)]
+	top.n.path <- min(top.n.path, length(path.position))
+	path.position <- path.position[1:top.n.path]
+	top.path <- all.sig.path[path.position]
+	plot.dat$path.name[which(!(plot.dat$path.name %in% top.path))] <- NA
+
+	up.ident <- plot.dat$up.ident
+	cur.rep <- plot.dat$cur.rep
+	path.name <- plot.dat$path.name
 	### the idents which release ligands
 	up.uniq.ident <- unique(up.ident)
 	if (!is.null(order)){
@@ -741,6 +801,9 @@ receptorPathPlot <- function(Interact, gsva.mat, ident.path.dat, p.thre = 0.05, 
 	n.rep <- length(cur.uniq.rep)
 	rep.coor <- seq(from=1, to=n.ident, length.out=n.rep)
 	rep.col <- rev(scales::hue_pal(c=100)(n.rep))
+
+	logfc <- top.receptor.dat[match(cur.uniq.rep, top.receptor.dat$gene),'avg_log2FC']
+	rep.size <- 5 * receptor.size * logfc
 	
 	### lines between ligand idents and receptors
 	line.y.coor <- match(up.ident, up.uniq.ident)
@@ -748,16 +811,20 @@ receptorPathPlot <- function(Interact, gsva.mat, ident.path.dat, p.thre = 0.05, 
 	line.col <- col.ident[match(up.ident, up.uniq.ident)]
 
 	### pathways coordinate and color
-	path.name <- ident.path.dat$description
-	path.name <- factor(path.name, levels=path.name)
-	path.name <- path.name[order(path.name, decreasing=TRUE)]
-	width <- max(sapply(as.vector(path.name),nchar))/10
-	pathway.coor <- seq(from=1, to=n.ident, length.out=length(path.name))
+	plot.path.dat <- subset(plot.dat, subset=!(is.na(path.name)), select=c('cur.rep','path.name') )
+	plot.path.dat <- unique(plot.path.dat)
+	path.name <- plot.path.dat$path.name
+	path.uniq.name <- unique(path.name)
+	path.uniq.name <- factor(path.uniq.name, levels=top.path)
+	path.uniq.name <- path.uniq.name[order(path.uniq.name, decreasing=TRUE)]
+	width <- max(sapply(as.vector(path.uniq.name),nchar))/10
+	pathway.coor <- seq(from=1, to=n.ident, length.out=length(path.uniq.name))
 	
 	### lines between receptors and pathways
+	cur.rep <- plot.path.dat$cur.rep
 	path.line.y.coor <- rep.coor[match(cur.rep, cur.uniq.rep)]
-	path.line.yend.coor <- pathway.coor[match(path.all, path.name)]
-	path.line.col <- 'black'
+	path.line.yend.coor <- pathway.coor[match(path.name, path.uniq.name)]
+	path.line.col <- rep.col[match(cur.rep, cur.uniq.rep)]
 
 	pathplot.theme <- theme(axis.title=element_blank(), axis.text=element_blank(),axis.ticks=element_blank(), axis.line=element_blank(), panel.background=element_rect(fill="white"))
 
@@ -766,10 +833,12 @@ receptorPathPlot <- function(Interact, gsva.mat, ident.path.dat, p.thre = 0.05, 
 	geom_point(aes(x=1,y=lig.coor),size=8*ident.size,color=col.ident) + 
 	annotate('text', hjust=0, x=1-label.dist, y=1:n.ident,label=up.uniq.ident, size=5*label.size) +
 	geom_segment(aes(x=1, xend=2, y=line.y.coor,yend=line.yend.coor), size=ident.line.width, color=line.col, alpha=ident.line.alpha, show.legend=F) +
-	annotate('label', hjust=0, x=3, y=pathway.coor,label=path.name, size=5*path.size) +
+	annotate('label', hjust=0, x=3, y=pathway.coor,label=path.uniq.name, size=5*path.size) +
 	geom_segment(aes(x=2, xend=3, y=path.line.y.coor,yend=path.line.yend.coor),size=path.line.width, color=path.line.col, alpha=path.line.alpha, show.legend=F) + 
-	geom_point(aes(x=2,y=rep.coor),size=8*ident.size,color=rep.col) + 
+	geom_point(aes(x=2,y=rep.coor),size=rep.size,color=rep.col) + 
 	annotate('text', hjust=0.5, x=2, y=rep.coor-0.4,label=cur.uniq.rep, size=5*label.size) +
+	annotate('text', hjust=0.5, x=1:2, y=max(lig.coor)+0.6,label=c('Source', 'Receptor'), size=5*label.size) +
+	annotate('text', hjust=0, x=3, y=max(lig.coor)+0.6,label=c('Pathway'), size=5*label.size) +
 	pathplot.theme
 
 }
