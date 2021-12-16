@@ -16,19 +16,9 @@ circosPlot <- function(Interact, order=NULL, col=NULL, ident=NULL){
 
 	### to check the order parameter
 	if(!is.null(order)){
-		if (all(all.ident %in% order)){
-			# Interact.num.dat$Cell.From <- factor(Interact.num.dat$Cell.From, levels=order)
-			# Interact.num.dat$Cell.To <- factor(Interact.num.dat$Cell.To, levels=order)
-			# Interact.num.dat <- Interact.num.dat[order(Interact.num.dat$Cell.From,Interact.num.dat$Cell.To),]
-			all.ident <- unique(c(Interact.num.dat$Cell.From,Interact.num.dat$Cell.To))
-			all.ident <- factor(all.ident, levels=order)
-			all.ident <- all.ident[order(all.ident)]
-		}else{
-			ident.missed <- all.ident[!(all.ident %in% order)]
-			ident.missed <- pasteIdent(ident.missed)
-			stop(paste0('the ident class ',ident.missed,' may be missed in the input order'))
-		}
+		all.ident <- orderCheck(all.ident, order)
 	}
+	all.ident <- all.ident[order(all.ident)]
 	
 	### to check the col parameter
 	if (is.null(col)){ 
@@ -640,6 +630,22 @@ pasteIdent <- function(ident.missed){
 	return(ident.missed)
 }
 
+#' This is a plug-in function, aimming to check whether the specified order of idents by users contain all idents that present in the dataset
+#' @param all.ident Vector of all idents that present in the dataset
+#' @param order Vector of the specified order of idents by users
+#' @return if all idents are not contained, stop the procedure 
+orderCheck <- function(all.ident, order){
+	if (all(all.ident %in% order)){
+		order.overlap <- order[order %in% all.ident]
+		all.ident <- factor(all.ident, levels=order.overlap)
+		return(all.ident)
+	}else{
+		ident.missed <- all.ident[!(all.ident %in% order)]
+		ident.missed <- pasteIdent(ident.missed)
+		stop(paste0('the ident class ',ident.missed,' may be missed in the input order'))
+	}
+}
+
 #' This is a plug-in function, aimming to find the highly variable pathways in the gsva score matrix
 #' @param gsva.mat Matrix containing the pathway enrichment sorces, with rows representing pathways and columns representing cells. Pathway scores are usually computed from gsva, or other methods aiming to measure the pathway enrichment in cells
 #' @param select.path selected pathways
@@ -740,8 +746,10 @@ receptorPathPlot <- function(Interact, select.ident, ident.path.dat, top.n.recep
 
 	if ('t' %in% colnames(ident.path.dat)){
 		ident.path.dat <- subset(ident.path.dat, p.val.adj < p.thre & t > 0)
-	}else{
+	}else if ('W' %in% colnames(ident.path.dat)){
 		ident.path.dat <- subset(ident.path.dat, p.val.adj < p.thre & median.diff > 0)
+	}else{
+		stop('please input the integrate ident.path.dat computed from diffPath')
 	}
 	ident.path.dat <- ident.path.dat[order(ident.path.dat$p.val.adj, decreasing=TRUE),]
 
@@ -765,7 +773,10 @@ receptorPathPlot <- function(Interact, select.ident, ident.path.dat, top.n.recep
 	}
 
 	markerR.dat <- markerR.dat[order(markerR.dat$avg_log2FC, decreasing=TRUE), ]
-	top.n.receptor <- min(top.n.receptor, nrow(markerR.dat))
+	if (top.n.receptor > nrow(markerR.dat)){
+		warning(paste0('there is(are) ', nrow(markerR.dat),' marker receptor(s) in the selected ident, and the input top.n.receptor is ', top.n.receptor))
+		top.n.receptor <- nrow(markerR.dat)
+	}
 	top.receptor.dat <- markerR.dat[1:top.n.receptor,]
 	plot.dat <- subset(plot.dat, cur.rep %in% top.receptor.dat$gene)
 	
@@ -775,22 +786,25 @@ receptorPathPlot <- function(Interact, select.ident, ident.path.dat, top.n.recep
 	### the following codes is to get the pathways with the top n largest position index
 	path.position <- match(path.uniq.name, all.sig.path)
 	path.position <- path.position[order(path.position, decreasing=TRUE)]
-	top.n.path <- min(top.n.path, length(path.position))
+	if (top.n.path > length(path.position)){
+		warning(paste0('there is(are) ', length(path.position),' significant pathway(s) for the selected ident, and the input top.n.path is ', top.n.path))
+		top.n.path <- length(path.position)
+	}
 	path.position <- path.position[1:top.n.path]
 	top.path <- all.sig.path[path.position]
 	plot.dat$path.name[which(!(plot.dat$path.name %in% top.path))] <- NA
 
-	up.ident <- plot.dat$up.ident
-	cur.rep <- plot.dat$cur.rep
-	path.name <- plot.dat$path.name
+	### data for plot of idents and receptors
+	plot.ident.dat <- unique(plot.dat[,c('up.ident','cur.rep')])
+	up.ident <- plot.ident.dat$up.ident
+	cur.rep <- plot.ident.dat$cur.rep
 	### the idents which release ligands
 	up.uniq.ident <- unique(up.ident)
+	### to check the order parameter
 	if (!is.null(order)){
-		order.overlap <- order[order %in% up.uniq.ident]
-		up.uniq.ident <- factor(up.uniq.ident, levels=order.overlap)
+		up.uniq.ident <- orderCheck(up.uniq.ident, order)
 	}
 	up.uniq.ident <- up.uniq.ident[order(up.uniq.ident, decreasing=TRUE)]
-
 	n.ident <- length(up.uniq.ident)
 	col.ident <- rev(scales::hue_pal(c=100)(n.ident))
 	lig.coor <- 1:n.ident
